@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Plus, 
@@ -15,25 +16,46 @@ import {
   Megaphone,
   BarChart2
 } from 'lucide-react';
+import DocumentUpload from '../components/DocumentUpload';
 
 const WardIntake: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'projects' | 'bursaries' | 'meetings' | 'engagement'>('projects');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [completedGates, setCompletedGates] = useState<string[]>([]);
+  
+  // Form State
+  const [projectData, setProjectData] = useState({
+    title: '',
+    sector: 'Education',
+    beneficiaries: '',
+    location: ''
+  });
 
   const handleNewProposal = () => {
     setWizardStep(1);
     setCompletedGates([]);
+    setProjectData({
+      title: '',
+      sector: 'Education',
+      beneficiaries: '',
+      location: ''
+    });
     setIsModalOpen(true);
   };
 
-  const toggleGate = (gate: string) => {
-    if (completedGates.includes(gate)) {
-      setCompletedGates(prev => prev.filter(g => g !== gate));
-    } else {
+  const handleUploadSuccess = (gate: string) => {
+    if (!completedGates.includes(gate)) {
       setCompletedGates(prev => [...prev, gate]);
     }
+  };
+
+  const handleRemoveFile = (gate: string) => {
+    setCompletedGates(prev => prev.filter(g => g !== gate));
+  };
+
+  const updateField = (field: string, value: string) => {
+    setProjectData(prev => ({ ...prev, [field]: value }));
   };
 
   const ProposalWizard = () => (
@@ -76,12 +98,22 @@ const WardIntake: React.FC = () => {
               <div className="space-y-4">
                  <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Project Title</label>
-                    <input type="text" placeholder="e.g. Construction of Market Shelter" className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none" />
+                    <input 
+                        type="text" 
+                        value={projectData.title}
+                        onChange={(e) => updateField('title', e.target.value)}
+                        placeholder="e.g. Construction of Market Shelter" 
+                        className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none" 
+                    />
                  </div>
                  <div className="grid grid-cols-2 gap-4">
                     <div>
                        <label className="block text-sm font-bold text-slate-700 mb-1">Sector</label>
-                       <select className="w-full border border-slate-300 rounded-lg px-4 py-2">
+                       <select 
+                            value={projectData.sector}
+                            onChange={(e) => updateField('sector', e.target.value)}
+                            className="w-full border border-slate-300 rounded-lg px-4 py-2"
+                        >
                           <option>Education</option>
                           <option>Health</option>
                           <option>Water & Sanitation</option>
@@ -90,13 +122,25 @@ const WardIntake: React.FC = () => {
                     </div>
                     <div>
                        <label className="block text-sm font-bold text-slate-700 mb-1">Est. Beneficiaries</label>
-                       <input type="number" placeholder="0" className="w-full border border-slate-300 rounded-lg px-4 py-2" />
+                       <input 
+                            type="number" 
+                            value={projectData.beneficiaries}
+                            onChange={(e) => updateField('beneficiaries', e.target.value)}
+                            placeholder="0" 
+                            className="w-full border border-slate-300 rounded-lg px-4 py-2" 
+                        />
                     </div>
                  </div>
                  <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1">Project Location</label>
                     <div className="flex gap-2">
-                       <input type="text" placeholder="Search map location..." className="flex-1 border border-slate-300 rounded-lg px-4 py-2" />
+                       <input 
+                            type="text" 
+                            value={projectData.location}
+                            onChange={(e) => updateField('location', e.target.value)}
+                            placeholder="Search map location..." 
+                            className="flex-1 border border-slate-300 rounded-lg px-4 py-2" 
+                        />
                        <button className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg border border-slate-200 hover:bg-slate-200 flex items-center gap-2">
                           <MapPin size={18} /> Pin
                        </button>
@@ -117,66 +161,33 @@ const WardIntake: React.FC = () => {
                     </div>
                  </div>
 
-                 <div className="space-y-3">
-                    <div 
-                      onClick={() => toggleGate('minutes')}
-                      className={`border rounded-lg p-4 transition-all cursor-pointer group ${completedGates.includes('minutes') ? 'border-green-500 bg-green-50' : 'border-slate-200 hover:border-blue-400'}`}
-                    >
-                       <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-3">
-                             <div className={`p-2 rounded group-hover:bg-blue-50 group-hover:text-blue-600 ${completedGates.includes('minutes') ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
-                                {completedGates.includes('minutes') ? <Check size={20} /> : <FileText size={20} />}
-                             </div>
-                             <div>
-                                <p className="font-bold text-slate-700 text-sm">Community Meeting Minutes</p>
-                                <p className="text-xs text-slate-500">Signed by WDC Chair & Secretary</p>
-                             </div>
-                          </div>
-                          <button className={`text-xs px-3 py-1.5 rounded font-medium border ${completedGates.includes('minutes') ? 'bg-white text-green-600 border-green-200' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}`}>
-                             {completedGates.includes('minutes') ? 'Uploaded' : 'Upload PDF'}
-                          </button>
-                       </div>
-                    </div>
+                 <div className="space-y-4">
+                    <DocumentUpload 
+                       label="Community Meeting Minutes"
+                       description="Minutes signed by WDC Chair & Secretary (PDF Only)"
+                       acceptedTypes={['application/pdf']}
+                       isUploaded={completedGates.includes('minutes')}
+                       onUploadComplete={() => handleUploadSuccess('minutes')}
+                       onRemove={() => handleRemoveFile('minutes')}
+                    />
 
-                    <div 
-                      onClick={() => toggleGate('land')}
-                      className={`border rounded-lg p-4 transition-all cursor-pointer group ${completedGates.includes('land') ? 'border-green-500 bg-green-50' : 'border-slate-200 hover:border-blue-400'}`}
-                    >
-                       <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-3">
-                             <div className={`p-2 rounded group-hover:bg-blue-50 group-hover:text-blue-600 ${completedGates.includes('land') ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
-                                {completedGates.includes('land') ? <Check size={20} /> : <MapPin size={20} />}
-                             </div>
-                             <div>
-                                <p className="font-bold text-slate-700 text-sm">Proof of Land Availability</p>
-                                <p className="text-xs text-slate-500">Council Letter or Chief's Consent</p>
-                             </div>
-                          </div>
-                          <button className={`text-xs px-3 py-1.5 rounded font-medium border ${completedGates.includes('land') ? 'bg-white text-green-600 border-green-200' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}`}>
-                             {completedGates.includes('land') ? 'Uploaded' : 'Upload PDF'}
-                          </button>
-                       </div>
-                    </div>
+                    <DocumentUpload 
+                       label="Proof of Land Availability"
+                       description="Council Letter or Chief's Consent (PDF/Image)"
+                       acceptedTypes={['application/pdf', 'image/jpeg', 'image/png']}
+                       isUploaded={completedGates.includes('land')}
+                       onUploadComplete={() => handleUploadSuccess('land')}
+                       onRemove={() => handleRemoveFile('land')}
+                    />
 
-                    <div 
-                      onClick={() => toggleGate('boq')}
-                      className={`border rounded-lg p-4 transition-all cursor-pointer group ${completedGates.includes('boq') ? 'border-green-500 bg-green-50' : 'border-slate-200 hover:border-blue-400'}`}
-                    >
-                       <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-3">
-                             <div className={`p-2 rounded group-hover:bg-blue-50 group-hover:text-blue-600 ${completedGates.includes('boq') ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500'}`}>
-                                {completedGates.includes('boq') ? <Check size={20} /> : <ShieldCheck size={20} />}
-                             </div>
-                             <div>
-                                <p className="font-bold text-slate-700 text-sm">Bill of Quantities (BOQ)</p>
-                                <p className="text-xs text-slate-500">Preliminary Estimates</p>
-                             </div>
-                          </div>
-                          <button className={`text-xs px-3 py-1.5 rounded font-medium border ${completedGates.includes('boq') ? 'bg-white text-green-600 border-green-200' : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'}`}>
-                             {completedGates.includes('boq') ? 'Uploaded' : 'Upload PDF'}
-                          </button>
-                       </div>
-                    </div>
+                    <DocumentUpload 
+                       label="Bill of Quantities (BOQ)"
+                       description="Preliminary Estimates / Costing (PDF/Excel)"
+                       acceptedTypes={['application/pdf', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel']}
+                       isUploaded={completedGates.includes('boq')}
+                       onUploadComplete={() => handleUploadSuccess('boq')}
+                       onRemove={() => handleRemoveFile('boq')}
+                    />
                  </div>
               </div>
            )}
@@ -187,11 +198,29 @@ const WardIntake: React.FC = () => {
                     <Check size={32} />
                  </div>
                  <h3 className="text-xl font-bold text-slate-800">Ready to Submit</h3>
-                 <p className="text-slate-500 max-w-md mx-auto mt-2">
+                 <p className="text-slate-500 max-w-md mx-auto mt-2 text-sm">
                     This proposal will be hashed and timestamped. Once submitted, it cannot be modified without a formal variation request.
                  </p>
-                 <div className="mt-6 bg-slate-50 p-4 rounded-lg text-left text-sm border border-slate-200 max-w-sm mx-auto">
-                    <div className="flex justify-between mb-1">
+                 
+                 <div className="mt-6 bg-slate-50 p-5 rounded-xl text-left text-sm border border-slate-200 max-w-sm mx-auto space-y-3">
+                    <div className="border-b border-slate-200 pb-3 mb-3">
+                        <h4 className="font-bold text-slate-800 mb-2">Proposal Summary</h4>
+                        <div className="grid grid-cols-3 gap-y-2 text-xs">
+                            <span className="text-slate-500">Title:</span>
+                            <span className="col-span-2 font-medium text-slate-900">{projectData.title || 'Untitled'}</span>
+                            
+                            <span className="text-slate-500">Sector:</span>
+                            <span className="col-span-2 font-medium text-slate-900">{projectData.sector}</span>
+                            
+                            <span className="text-slate-500">Location:</span>
+                            <span className="col-span-2 font-medium text-slate-900">{projectData.location || 'Not specified'}</span>
+                            
+                            <span className="text-slate-500">Beneficiaries:</span>
+                            <span className="col-span-2 font-medium text-slate-900">{projectData.beneficiaries || '0'}</span>
+                        </div>
+                    </div>
+                    
+                    <div className="flex justify-between">
                         <span className="text-slate-500">Status:</span>
                         <span className="font-bold text-blue-600">Pending CDFC Review</span>
                     </div>
@@ -219,9 +248,12 @@ const WardIntake: React.FC = () => {
                  if (wizardStep < 3) setWizardStep(prev => prev + 1);
                  else setIsModalOpen(false);
               }}
-              disabled={wizardStep === 2 && completedGates.length < 3}
+              disabled={
+                (wizardStep === 1 && !projectData.title) ||
+                (wizardStep === 2 && completedGates.length < 3)
+              }
               className={`px-6 py-2 font-bold rounded-lg flex items-center gap-2 transition-all ${
-                wizardStep === 2 && completedGates.length < 3 
+                ((wizardStep === 1 && !projectData.title) || (wizardStep === 2 && completedGates.length < 3))
                   ? 'bg-slate-300 text-slate-500 cursor-not-allowed' 
                   : 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg shadow-blue-200'
               }`}
@@ -373,9 +405,16 @@ const WardIntake: React.FC = () => {
             <p className="text-slate-500 max-w-md mt-2 mb-6">
                Projects cannot be forwarded to CDFC without signed minutes from a quorate WDC meeting. The system will verify the chairperson's signature.
             </p>
-            <button className="bg-slate-900 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-slate-800 transition-colors">
-               Select PDF File
-            </button>
+            
+            {/* Using the new component here as well */}
+            <div className="w-full max-w-md">
+                <DocumentUpload 
+                   label="WDC Meeting Minutes"
+                   acceptedTypes={['application/pdf']}
+                   onUploadComplete={() => console.log("Minutes Uploaded")}
+                   onRemove={() => console.log("Minutes Removed")}
+                />
+            </div>
          </div>
       )}
       

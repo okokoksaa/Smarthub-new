@@ -23,6 +23,27 @@ export enum ViewState {
   SYSTEM_HEALTH = 'SYSTEM_HEALTH'
 }
 
+export enum UserRole {
+  ADMIN = 'ADMIN',
+  MINISTRY = 'MINISTRY',
+  PLGO = 'PLGO',
+  CDFC = 'CDFC',
+  WDC = 'WDC',
+  TAC = 'TAC',
+  FINANCE = 'FINANCE',
+  AUDITOR = 'AUDITOR',
+  PUBLIC = 'PUBLIC'
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  scope: string; // e.g., "Kabwata Ward", "Lusaka Province", "National"
+  avatarUrl?: string;
+}
+
 export interface Project {
   id: string;
   title: string;

@@ -23,13 +23,25 @@ import MinistryDashboard from './views/MinistryDashboard';
 import Integrations from './views/Integrations';
 import Reporting from './views/Reporting';
 import SystemHealth from './views/SystemHealth';
-import { ViewState } from './types';
+import { ViewState, UserRole } from './types';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Users, ChevronUp } from 'lucide-react';
 
-const App: React.FC = () => {
+// Inner App Component to consume Auth Context
+const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.DASHBOARD);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const { switchRole, currentUser, canAccessView } = useAuth();
+  const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
 
   const renderView = () => {
+    // Security Gate: If current user role cannot access the view, fallback to Dashboard
+    // In a real app, this would be a 403 Access Denied page
+    if (!canAccessView(currentView) && currentView !== ViewState.PUBLIC_PORTAL) {
+       // Try to fallback to Dashboard if accessible, else Public Portal
+       return canAccessView(ViewState.DASHBOARD) ? <Dashboard /> : <PublicPortal />;
+    }
+
     switch (currentView) {
       case ViewState.DASHBOARD: return <Dashboard />;
       case ViewState.WARD_INTAKE: return <WardIntake />;
@@ -56,13 +68,11 @@ const App: React.FC = () => {
     }
   };
 
-  // Special Layout for Public Portal (Full Width, No Sidebar usually, but here kept for demo navigation)
   const isPublic = currentView === ViewState.PUBLIC_PORTAL;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
       
-      {/* Sidebar - Hidden if strictly public mode wanted, but kept for demo navigation */}
       <Sidebar 
         currentView={currentView} 
         onNavigate={setCurrentView} 
@@ -78,7 +88,6 @@ const App: React.FC = () => {
            />
         )}
         
-        {/* Public Portal has its own header internally */}
         {isPublic && (
            <button 
              onClick={() => setIsMobileSidebarOpen(true)} 
@@ -93,8 +102,53 @@ const App: React.FC = () => {
               {renderView()}
            </div>
         </main>
+
+        {/* RBAC DevTool: Role Switcher */}
+        <div className="fixed bottom-6 right-6 z-50">
+           <div className={`bg-slate-900 text-white rounded-xl shadow-2xl transition-all duration-300 overflow-hidden ${isSwitcherOpen ? 'w-64' : 'w-12 h-12 rounded-full'}`}>
+              {isSwitcherOpen ? (
+                 <div className="p-4">
+                    <div className="flex justify-between items-center mb-3 border-b border-slate-700 pb-2">
+                       <h3 className="font-bold text-sm flex items-center gap-2">
+                          <Users size={16} /> Switch Persona
+                       </h3>
+                       <button onClick={() => setIsSwitcherOpen(false)}>
+                          <ChevronUp size={16} className="rotate-180" />
+                       </button>
+                    </div>
+                    <div className="space-y-1 max-h-64 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-600">
+                       {Object.values(UserRole).map((role) => (
+                          <button
+                             key={role}
+                             onClick={() => switchRole(role)}
+                             className={`w-full text-left px-3 py-2 rounded text-xs font-medium transition-colors ${currentUser.role === role ? 'bg-blue-600 text-white' : 'hover:bg-slate-800 text-slate-300'}`}
+                          >
+                             {role}
+                          </button>
+                       ))}
+                    </div>
+                 </div>
+              ) : (
+                 <button 
+                    onClick={() => setIsSwitcherOpen(true)}
+                    className="w-full h-full flex items-center justify-center bg-blue-600 hover:bg-blue-700 rounded-full transition-colors shadow-lg shadow-blue-900/50"
+                    title="Switch User Role"
+                 >
+                    <Users size={20} />
+                 </button>
+              )}
+           </div>
+        </div>
       </div>
     </div>
+  );
+}
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 };
 
