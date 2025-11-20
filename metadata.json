@@ -1,0 +1,8 @@
+{
+  "name": "CDF Smart Hub",
+  "description": "A revolutionary digital platform transforming Constituency Development for the digital age. Connects citizens, manages government projects, and ensures transparent financial governance.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
