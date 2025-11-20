@@ -10,11 +10,14 @@ import {
   X,
   AlertCircle,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  MessageSquare,
+  Megaphone,
+  BarChart2
 } from 'lucide-react';
 
 const WardIntake: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'projects' | 'bursaries' | 'meetings'>('projects');
+  const [activeTab, setActiveTab] = useState<'projects' | 'bursaries' | 'meetings' | 'engagement'>('projects');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [completedGates, setCompletedGates] = useState<string[]>([]);
@@ -236,7 +239,7 @@ const WardIntake: React.FC = () => {
       {isModalOpen && <ProposalWizard />}
       
       {/* Tabs */}
-      <div className="border-b border-slate-200 flex gap-6">
+      <div className="border-b border-slate-200 flex gap-6 flex-wrap">
         <button 
           onClick={() => setActiveTab('projects')}
           className={`pb-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'projects' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
@@ -253,7 +256,13 @@ const WardIntake: React.FC = () => {
           onClick={() => setActiveTab('meetings')}
           className={`pb-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'meetings' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
-          WDC Meetings & Minutes
+          WDC Meetings
+        </button>
+        <button 
+          onClick={() => setActiveTab('engagement')}
+          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${activeTab === 'engagement' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+        >
+          Community Engagement
         </button>
       </div>
 
@@ -368,6 +377,108 @@ const WardIntake: React.FC = () => {
                Select PDF File
             </button>
          </div>
+      )}
+      
+      {activeTab === 'engagement' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           {/* Community Polls */}
+           <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <BarChart2 size={18} className="text-blue-600" /> Active Polls
+                 </h3>
+                 <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-bold">Live</span>
+              </div>
+              <div className="p-6 space-y-6">
+                 <div>
+                    <h4 className="font-bold text-slate-800 mb-2">Priority Project Sector for 2025</h4>
+                    <p className="text-xs text-slate-500 mb-4">Ends in 5 days • 450 Votes cast</p>
+                    <div className="space-y-3">
+                       <div>
+                          <div className="flex justify-between text-xs mb-1">
+                             <span className="font-medium text-slate-700">Water & Sanitation</span>
+                             <span className="font-bold text-blue-600">55%</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-2">
+                             <div className="bg-blue-600 h-2 rounded-full w-[55%]"></div>
+                          </div>
+                       </div>
+                       <div>
+                          <div className="flex justify-between text-xs mb-1">
+                             <span className="font-medium text-slate-700">Roads & Drainage</span>
+                             <span className="font-bold text-slate-600">30%</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-2">
+                             <div className="bg-slate-400 h-2 rounded-full w-[30%]"></div>
+                          </div>
+                       </div>
+                       <div>
+                          <div className="flex justify-between text-xs mb-1">
+                             <span className="font-medium text-slate-700">Education</span>
+                             <span className="font-bold text-slate-600">15%</span>
+                          </div>
+                          <div className="w-full bg-slate-100 rounded-full h-2">
+                             <div className="bg-slate-400 h-2 rounded-full w-[15%]"></div>
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+                 <button className="w-full py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50">
+                    Create New Poll
+                 </button>
+              </div>
+           </div>
+
+           {/* Notices */}
+           <div className="bg-white rounded-xl shadow-sm border border-slate-200">
+              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <Megaphone size={18} className="text-amber-600" /> Public Notices
+                 </h3>
+                 <button className="text-sm text-blue-600 hover:underline">View Archive</button>
+              </div>
+              <div className="divide-y divide-slate-100">
+                 <div className="p-6 hover:bg-slate-50">
+                    <div className="flex gap-3">
+                       <div className="mt-1 p-2 bg-amber-50 text-amber-600 rounded-lg shrink-0">
+                          <MessageSquare size={20} />
+                       </div>
+                       <div>
+                          <h4 className="font-bold text-slate-800">Town Hall Meeting: Zone 4</h4>
+                          <p className="text-sm text-slate-600 mt-1">
+                             Discussion of proposed market shelter location. All residents invited.
+                          </p>
+                          <div className="flex gap-4 mt-3 text-xs text-slate-500 font-medium">
+                             <span>Sat, Nov 2 @ 10:00 AM</span>
+                             <span>Community Hall</span>
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+                 <div className="p-6 hover:bg-slate-50">
+                    <div className="flex gap-3">
+                       <div className="mt-1 p-2 bg-blue-50 text-blue-600 rounded-lg shrink-0">
+                          <FileText size={20} />
+                       </div>
+                       <div>
+                          <h4 className="font-bold text-slate-800">Bursary Application Deadline Extended</h4>
+                          <p className="text-sm text-slate-600 mt-1">
+                             Submission deadline extended to Friday due to holiday.
+                          </p>
+                          <div className="flex gap-4 mt-3 text-xs text-slate-500 font-medium">
+                             <span>New Date: Nov 08</span>
+                          </div>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+              <div className="p-4 border-t border-slate-100">
+                 <button className="w-full bg-slate-900 text-white py-2 rounded-lg text-sm font-medium hover:bg-slate-800">
+                    Publish New Notice
+                 </button>
+              </div>
+           </div>
+        </div>
       )}
     </div>
   );
