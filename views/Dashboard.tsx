@@ -1,16 +1,17 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   AlertCircle, 
   CheckCircle2, 
   Clock, 
   TrendingUp, 
-  AlertTriangle,
-  ArrowRight,
-  Users,
-  Wallet,
-  FileText,
-  ChevronRight
+  AlertTriangle, 
+  ArrowRight, 
+  Users, 
+  Wallet, 
+  FileText, 
+  ChevronRight,
+  Filter
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { Task } from '../types';
@@ -53,6 +54,17 @@ const StatCard = ({ title, value, trend, icon: Icon, colorClass, bgClass }: any)
 );
 
 const Dashboard: React.FC = () => {
+  const [filterType, setFilterType] = useState('All');
+  const [filterPriority, setFilterPriority] = useState('All');
+  const [filterAssigned, setFilterAssigned] = useState('All');
+
+  const filteredTasks = mockTasks.filter(task => {
+    const typeMatch = filterType === 'All' || task.type === filterType;
+    const priorityMatch = filterPriority === 'All' || task.priority === filterPriority;
+    const assignedMatch = filterAssigned === 'All' || task.assignedTo === filterAssigned;
+    return typeMatch && priorityMatch && assignedMatch;
+  });
+
   return (
     <div className="space-y-8 animate-fade-in pb-12">
       {/* Header Stats */}
@@ -101,33 +113,97 @@ const Dashboard: React.FC = () => {
             </div>
             <button className="text-sm text-blue-600 font-bold hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">View All</button>
           </div>
+
+          {/* Filters Bar */}
+          <div className="px-6 py-3 border-b border-slate-100 bg-white flex flex-wrap gap-3 items-center">
+             <div className="flex items-center gap-2 text-slate-500 text-xs font-medium uppercase tracking-wide">
+                <Filter size={14} /> Filters:
+             </div>
+             <select 
+               value={filterType} 
+               onChange={(e) => setFilterType(e.target.value)}
+               className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+             >
+                <option value="All">All Types</option>
+                <option value="Approval">Approval</option>
+                <option value="Review">Review</option>
+                <option value="Signature">Signature</option>
+                <option value="Compliance">Compliance</option>
+             </select>
+             <select 
+               value={filterPriority} 
+               onChange={(e) => setFilterPriority(e.target.value)}
+               className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+             >
+                <option value="All">All Priorities</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+             </select>
+             <select 
+               value={filterAssigned} 
+               onChange={(e) => setFilterAssigned(e.target.value)}
+               className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-slate-50 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+             >
+                <option value="All">All Assignees</option>
+                <option value="CDFC">CDFC</option>
+                <option value="Panel A">Panel A</option>
+                <option value="Finance">Finance</option>
+                <option value="M&E">M&E</option>
+             </select>
+             
+             {(filterType !== 'All' || filterPriority !== 'All' || filterAssigned !== 'All') && (
+                <button 
+                  onClick={() => { setFilterType('All'); setFilterPriority('All'); setFilterAssigned('All'); }}
+                  className="text-xs text-blue-600 hover:underline ml-auto font-medium"
+                >
+                   Clear Filters
+                </button>
+             )}
+          </div>
+
           <div className="divide-y divide-slate-100">
-            {mockTasks.map((task) => (
-              <div key={task.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/80 transition-colors group cursor-pointer">
-                <div className="flex items-start gap-4">
-                  <div className={`mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 shadow-sm ${task.priority === 'High' ? 'bg-red-500 shadow-red-200' : task.priority === 'Medium' ? 'bg-amber-500 shadow-amber-200' : 'bg-blue-500 shadow-blue-200'}`} />
-                  <div>
-                    <p className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors text-sm">{task.title}</p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <span className="text-[10px] uppercase font-bold tracking-wide px-2 py-0.5 bg-slate-100 text-slate-600 rounded">{task.type}</span>
-                      <span className="text-xs text-slate-400">• Assigned: {task.assignedTo}</span>
+            {filteredTasks.length > 0 ? (
+              filteredTasks.map((task) => (
+                <div key={task.id} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/80 transition-colors group cursor-pointer">
+                  <div className="flex items-start gap-4">
+                    <div className={`mt-1.5 w-2.5 h-2.5 rounded-full shrink-0 shadow-sm ${task.priority === 'High' ? 'bg-red-500 shadow-red-200' : task.priority === 'Medium' ? 'bg-amber-500 shadow-amber-200' : 'bg-blue-500 shadow-blue-200'}`} />
+                    <div>
+                      <p className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors text-sm">{task.title}</p>
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="text-[10px] uppercase font-bold tracking-wide px-2 py-0.5 bg-slate-100 text-slate-600 rounded">{task.type}</span>
+                        <span className="text-xs text-slate-400">• Assigned: {task.assignedTo}</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="flex flex-col items-end gap-2">
+                    {task.dueInDays < 0 ? (
+                      <span className="flex items-center text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">
+                        <AlertTriangle size={12} className="mr-1" /> {Math.abs(task.dueInDays)}d Overdue
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-500 font-medium bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
+                        {task.dueInDays}d left
+                      </span>
+                    )}
+                    <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  {task.dueInDays < 0 ? (
-                    <span className="flex items-center text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">
-                      <AlertTriangle size={12} className="mr-1" /> {Math.abs(task.dueInDays)}d Overdue
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-500 font-medium bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200">
-                      {task.dueInDays}d left
-                    </span>
-                  )}
-                  <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors" />
-                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center">
+                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-3">
+                    <CheckCircle2 size={24} className="text-slate-400" />
+                 </div>
+                 <p className="text-slate-500 text-sm">No tasks match the selected filters.</p>
+                 <button 
+                    onClick={() => { setFilterType('All'); setFilterPriority('All'); setFilterAssigned('All'); }}
+                    className="text-blue-600 text-sm font-medium mt-2 hover:underline"
+                 >
+                    Clear all filters
+                 </button>
               </div>
-            ))}
+            )}
           </div>
           <div className="mt-auto p-4 bg-slate-50 border-t border-slate-100 text-center">
              <p className="text-xs text-slate-400">You have cleared 12 tasks this week. Good job!</p>
