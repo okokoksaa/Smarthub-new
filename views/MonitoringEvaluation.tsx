@@ -1,19 +1,152 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { 
   MapPin, 
   Camera, 
   AlertCircle, 
   CheckCircle2, 
-  BarChart2,
-  Calendar,
+  X,
   Globe,
   Navigation,
-  Shield
+  Shield,
+  Map as MapIcon,
+  Loader2
 } from 'lucide-react';
+import DocumentUpload from '../components/DocumentUpload';
 
 const MonitoringEvaluation: React.FC = () => {
+  const [showLogModal, setShowLogModal] = useState(false);
+  const [gpsStatus, setGpsStatus] = useState<'idle' | 'locating' | 'success' | 'fail'>('idle');
+  const [distance, setDistance] = useState<number | null>(null);
+
+  // Mock function to simulate GPS verification against project geofence
+  const verifyLocation = () => {
+    setGpsStatus('locating');
+    setTimeout(() => {
+      // Simulate a random distance calculation
+      const simDistance = Math.floor(Math.random() * 300); // 0 to 300 meters
+      setDistance(simDistance);
+      
+      // Geofence radius is 200m
+      if (simDistance <= 200) {
+        setGpsStatus('success');
+      } else {
+        setGpsStatus('fail');
+      }
+    }, 2000);
+  };
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in relative">
+      {/* Log Visit Modal */}
+      {showLogModal && (
+         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+               <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                  <div>
+                     <h3 className="font-bold text-slate-800 text-lg">Log Site Visit</h3>
+                     <p className="text-xs text-slate-500">M&E Report Capture</p>
+                  </div>
+                  <button onClick={() => setShowLogModal(false)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500">
+                     <X size={20} />
+                  </button>
+               </div>
+
+               <div className="p-6 space-y-6 overflow-y-auto">
+                  <div>
+                     <label className="block text-sm font-bold text-slate-700 mb-1">Select Project</label>
+                     <select className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm">
+                        <option>School Block A - Roof Inspection</option>
+                        <option>Market Shelter - Foundation</option>
+                     </select>
+                  </div>
+
+                  {/* Geofence Enforcement Section */}
+                  <div className={`border rounded-xl p-5 text-center transition-colors ${
+                     gpsStatus === 'success' ? 'border-green-200 bg-green-50' :
+                     gpsStatus === 'fail' ? 'border-red-200 bg-red-50' :
+                     'border-slate-200 bg-slate-50'
+                  }`}>
+                     <h4 className="font-bold text-slate-800 text-sm mb-3 flex items-center justify-center gap-2">
+                        <MapIcon size={16} /> GPS Geofence Verification
+                     </h4>
+                     
+                     {gpsStatus === 'idle' && (
+                        <button 
+                           onClick={verifyLocation}
+                           className="bg-slate-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 flex items-center gap-2 mx-auto"
+                        >
+                           <Navigation size={16} /> Verify My Location
+                        </button>
+                     )}
+
+                     {gpsStatus === 'locating' && (
+                        <div className="flex flex-col items-center text-slate-500">
+                           <Loader2 size={24} className="animate-spin mb-2 text-blue-600" />
+                           <p className="text-xs">Triangulating satellites...</p>
+                        </div>
+                     )}
+
+                     {gpsStatus === 'success' && (
+                        <div className="animate-scale-in">
+                           <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                              <CheckCircle2 size={24} />
+                           </div>
+                           <p className="text-green-800 font-bold text-sm">Location Verified</p>
+                           <p className="text-xs text-green-600">You are {distance}m from the project site (Inside 200m Geofence)</p>
+                        </div>
+                     )}
+
+                     {gpsStatus === 'fail' && (
+                        <div className="animate-scale-in">
+                           <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-2">
+                              <X size={24} />
+                           </div>
+                           <p className="text-red-800 font-bold text-sm">Verification Failed</p>
+                           <p className="text-xs text-red-600">You are {distance}m from the site. Must be within 200m to submit.</p>
+                           <button onClick={verifyLocation} className="mt-2 text-xs text-red-700 underline">Retry</button>
+                        </div>
+                     )}
+                  </div>
+
+                  {/* Photo Upload */}
+                  <div className={gpsStatus !== 'success' ? 'opacity-50 pointer-events-none' : ''}>
+                      <DocumentUpload 
+                         label="Site Photos (With EXIF)"
+                         description="Upload at least 2 photos of progress"
+                         acceptedTypes={['image/jpeg', 'image/png']}
+                         onUploadComplete={() => {}}
+                         onRemove={() => {}}
+                      />
+                  </div>
+
+                  <div>
+                     <label className="block text-sm font-bold text-slate-700 mb-1">Physical Progress (%)</label>
+                     <input 
+                        type="range" 
+                        min="0" max="100" 
+                        className="w-full"
+                        disabled={gpsStatus !== 'success'}
+                     />
+                  </div>
+               </div>
+
+               <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end">
+                  <button 
+                     disabled={gpsStatus !== 'success'}
+                     className={`px-6 py-2 rounded-lg font-bold text-white transition-all ${
+                        gpsStatus === 'success' 
+                        ? 'bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200' 
+                        : 'bg-slate-300 cursor-not-allowed'
+                     }`}
+                  >
+                     Submit Report
+                  </button>
+               </div>
+            </div>
+         </div>
+      )}
+
       {/* KPI Header */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
@@ -47,7 +180,14 @@ const MonitoringEvaluation: React.FC = () => {
               <h2 className="font-bold text-slate-800 flex items-center gap-2">
                  <MapPin size={18} className="text-blue-600" /> Recent Site Visits
               </h2>
-              <button className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">
+              <button 
+                 onClick={() => {
+                    setShowLogModal(true);
+                    setGpsStatus('idle');
+                    setDistance(null);
+                 }}
+                 className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 shadow-md shadow-blue-200 transition-transform hover:scale-105"
+              >
                  + Log Visit
               </button>
            </div>

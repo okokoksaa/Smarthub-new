@@ -18,7 +18,7 @@ const MOCK_USERS: Record<UserRole, User> = {
     email: 'admin@cdf.gov.zm',
     role: UserRole.ADMIN,
     scope: 'National - Root',
-    avatarUrl: 'https://picsum.photos/seed/admin/100/100'
+    avatarUrl: 'https://ui-avatars.com/api/?name=System+Admin&background=0f172a&color=fff'
   },
   [UserRole.MINISTRY]: {
     id: 'hq-1',
@@ -26,7 +26,7 @@ const MOCK_USERS: Record<UserRole, User> = {
     email: 'minister@mlgrd.gov.zm',
     role: UserRole.MINISTRY,
     scope: 'National',
-    avatarUrl: 'https://picsum.photos/seed/minister/100/100'
+    avatarUrl: 'https://ui-avatars.com/api/?name=Hon+Minister&background=0f172a&color=fff'
   },
   [UserRole.PLGO]: {
     id: 'plgo-1',
@@ -34,7 +34,7 @@ const MOCK_USERS: Record<UserRole, User> = {
     email: 'plgo.lusaka@cdf.gov.zm',
     role: UserRole.PLGO,
     scope: 'Lusaka Province',
-    avatarUrl: 'https://picsum.photos/seed/plgo/100/100'
+    avatarUrl: 'https://ui-avatars.com/api/?name=Provincial+Officer&background=0f172a&color=fff'
   },
   [UserRole.CDFC]: {
     id: 'cdfc-1',
@@ -42,7 +42,7 @@ const MOCK_USERS: Record<UserRole, User> = {
     email: 'chair@kabwata.cdf.zm',
     role: UserRole.CDFC,
     scope: 'Kabwata Constituency',
-    avatarUrl: 'https://picsum.photos/seed/cdfc/100/100'
+    avatarUrl: 'https://ui-avatars.com/api/?name=CDFC+Chair&background=0f172a&color=fff'
   },
   [UserRole.WDC]: {
     id: 'wdc-1',
@@ -50,7 +50,7 @@ const MOCK_USERS: Record<UserRole, User> = {
     email: 'sec@zone4.ward.zm',
     role: UserRole.WDC,
     scope: 'Zone 4 Ward',
-    avatarUrl: 'https://picsum.photos/seed/wdc/100/100'
+    avatarUrl: 'https://ui-avatars.com/api/?name=WDC+Sec&background=0f172a&color=fff'
   },
   [UserRole.TAC]: {
     id: 'tac-1',
@@ -58,7 +58,7 @@ const MOCK_USERS: Record<UserRole, User> = {
     email: 'eng.mumba@council.gov.zm',
     role: UserRole.TAC,
     scope: 'District Technical',
-    avatarUrl: 'https://picsum.photos/seed/tac/100/100'
+    avatarUrl: 'https://ui-avatars.com/api/?name=Dist+Eng&background=0f172a&color=fff'
   },
   [UserRole.FINANCE]: {
     id: 'fin-1',
@@ -66,7 +66,7 @@ const MOCK_USERS: Record<UserRole, User> = {
     email: 'finance@council.gov.zm',
     role: UserRole.FINANCE,
     scope: 'Financial Signatory',
-    avatarUrl: 'https://picsum.photos/seed/finance/100/100'
+    avatarUrl: 'https://ui-avatars.com/api/?name=Treasurer&background=0f172a&color=fff'
   },
   [UserRole.AUDITOR]: {
     id: 'aud-1',
@@ -74,7 +74,7 @@ const MOCK_USERS: Record<UserRole, User> = {
     email: 'audit@oag.gov.zm',
     role: UserRole.AUDITOR,
     scope: 'Read Only',
-    avatarUrl: 'https://picsum.photos/seed/audit/100/100'
+    avatarUrl: 'https://ui-avatars.com/api/?name=Int+Auditor&background=0f172a&color=fff'
   },
   [UserRole.PUBLIC]: {
     id: 'pub-1',
@@ -82,7 +82,7 @@ const MOCK_USERS: Record<UserRole, User> = {
     email: 'guest@public',
     role: UserRole.PUBLIC,
     scope: 'Public',
-    avatarUrl: 'https://picsum.photos/seed/public/100/100'
+    avatarUrl: 'https://ui-avatars.com/api/?name=Citizen&background=0f172a&color=fff'
   }
 };
 
@@ -100,7 +100,7 @@ const ROLE_PERMISSIONS: Record<UserRole, ViewState[]> = {
   [UserRole.CDFC]: [
     ViewState.DASHBOARD, ViewState.WARD_INTAKE, ViewState.PROJECTS, 
     ViewState.GOVERNANCE, ViewState.BURSARIES, ViewState.EMPOWERMENT, 
-    ViewState.M_AND_E, ViewState.AI_CENTER, ViewState.PROCUREMENT
+    ViewState.M_AND_E, ViewState.AI_CENTER, ViewState.PROCUREMENT, ViewState.FINANCE, ViewState.REPORTING
   ],
   [UserRole.WDC]: [
     ViewState.WARD_INTAKE, ViewState.M_AND_E, ViewState.AI_CENTER

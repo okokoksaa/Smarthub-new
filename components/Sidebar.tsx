@@ -105,6 +105,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isMobileOpen
     );
   };
 
+  // Helper to check if a section has visible items
+  const hasVisibleItems = (items: { id: ViewState }[]) => {
+    return items.some(item => canAccessView(item.id));
+  };
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -135,50 +140,57 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, isMobileOpen
         </div>
 
         <div className="flex-1 overflow-y-auto py-6 px-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-          {/* RBAC: Only render sections if at least one item is visible. 
-              For simplicity in this simulation, we render the section div, 
-              and the helper returns null if no access. 
-              In a prod app, we'd filter the array first to hide empty headers. 
-          */}
           
-          <div className="space-y-1">
-            {mainNav.map(renderNavItem)}
-          </div>
-
-          <div>
-            <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Core Operations</div>
+          {hasVisibleItems(mainNav) && (
             <div className="space-y-1">
-              {operationsNav.map(renderNavItem)}
+              {mainNav.map(renderNavItem)}
             </div>
-          </div>
+          )}
 
-          <div>
-            <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Social Impact</div>
-            <div className="space-y-1">
-              {socialNav.map(renderNavItem)}
+          {hasVisibleItems(operationsNav) && (
+            <div>
+              <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Core Operations</div>
+              <div className="space-y-1">
+                {operationsNav.map(renderNavItem)}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div>
-            <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Governance</div>
-            <div className="space-y-1">
-              {governanceNav.map(renderNavItem)}
+          {hasVisibleItems(socialNav) && (
+            <div>
+              <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Social Impact</div>
+              <div className="space-y-1">
+                {socialNav.map(renderNavItem)}
+              </div>
             </div>
-          </div>
+          )}
 
-          <div>
-             <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Tools & Access</div>
-             <div className="space-y-1">
-                {toolsNav.map(renderNavItem)}
+          {hasVisibleItems(governanceNav) && (
+            <div>
+              <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Governance</div>
+              <div className="space-y-1">
+                {governanceNav.map(renderNavItem)}
+              </div>
+            </div>
+          )}
+
+          {hasVisibleItems(toolsNav) && (
+             <div>
+                <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Tools & Access</div>
+                <div className="space-y-1">
+                   {toolsNav.map(renderNavItem)}
+                </div>
              </div>
-          </div>
+          )}
 
-          <div>
-            <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Administration</div>
-            <div className="space-y-1">
-              {adminNav.map(renderNavItem)}
+          {hasVisibleItems(adminNav) && (
+            <div>
+              <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">Administration</div>
+              <div className="space-y-1">
+                {adminNav.map(renderNavItem)}
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* User Profile */}

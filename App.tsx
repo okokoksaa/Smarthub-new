@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './views/Dashboard';
@@ -34,11 +34,21 @@ const AppContent: React.FC = () => {
   const { switchRole, currentUser, canAccessView } = useAuth();
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
 
-  const renderView = () => {
-    // Security Gate: If current user role cannot access the view, fallback to Dashboard
-    // In a real app, this would be a 403 Access Denied page
+  // Redirect if user loses access to current view upon role switch
+  useEffect(() => {
     if (!canAccessView(currentView) && currentView !== ViewState.PUBLIC_PORTAL) {
-       // Try to fallback to Dashboard if accessible, else Public Portal
+       // If user can access dashboard, go there. Otherwise Public Portal.
+       if (canAccessView(ViewState.DASHBOARD)) {
+         setCurrentView(ViewState.DASHBOARD);
+       } else {
+         setCurrentView(ViewState.PUBLIC_PORTAL);
+       }
+    }
+  }, [currentUser, currentView, canAccessView]);
+
+  const renderView = () => {
+    // Double check render security
+    if (!canAccessView(currentView) && currentView !== ViewState.PUBLIC_PORTAL) {
        return canAccessView(ViewState.DASHBOARD) ? <Dashboard /> : <PublicPortal />;
     }
 

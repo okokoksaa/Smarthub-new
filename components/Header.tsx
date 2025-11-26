@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Menu, Bell, Search, ChevronDown, Building, Shield } from 'lucide-react';
+import { Menu, Bell, Search, ChevronDown, Shield } from 'lucide-react';
 import { ViewState } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
