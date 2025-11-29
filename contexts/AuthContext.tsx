@@ -10,7 +10,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock Users for Personas
+// Mock Users for Personas based on PRD
 const MOCK_USERS: Record<UserRole, User> = {
   [UserRole.ADMIN]: {
     id: 'admin-1',
@@ -76,6 +76,22 @@ const MOCK_USERS: Record<UserRole, User> = {
     scope: 'Read Only',
     avatarUrl: 'https://ui-avatars.com/api/?name=Int+Auditor&background=0f172a&color=fff'
   },
+  [UserRole.MP]: {
+    id: 'mp-1',
+    name: 'Hon. Member',
+    email: 'mp@parliament.gov.zm',
+    role: UserRole.MP,
+    scope: 'Constituency Oversight',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Hon+MP&background=0f172a&color=fff'
+  },
+  [UserRole.CONTRACTOR]: {
+    id: 'cont-1',
+    name: 'BuildRight Ltd',
+    email: 'info@buildright.zm',
+    role: UserRole.CONTRACTOR,
+    scope: 'Project Specific',
+    avatarUrl: 'https://ui-avatars.com/api/?name=Contractor&background=0f172a&color=fff'
+  },
   [UserRole.PUBLIC]: {
     id: 'pub-1',
     name: 'Citizen Guest',
@@ -118,6 +134,13 @@ const ROLE_PERMISSIONS: Record<UserRole, ViewState[]> = {
     ViewState.DASHBOARD, ViewState.AUDIT, ViewState.FINANCE, 
     ViewState.PROJECTS, ViewState.PROCUREMENT, ViewState.REPORTING, 
     ViewState.LEGAL
+  ],
+  [UserRole.MP]: [
+    ViewState.DASHBOARD, ViewState.PROJECTS, ViewState.REPORTING,
+    ViewState.M_AND_E, ViewState.AI_CENTER
+  ],
+  [UserRole.CONTRACTOR]: [
+    ViewState.PROJECTS, ViewState.FINANCE
   ],
   [UserRole.PUBLIC]: [
     ViewState.PUBLIC_PORTAL

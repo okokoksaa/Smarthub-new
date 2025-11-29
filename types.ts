@@ -32,6 +32,8 @@ export enum UserRole {
   TAC = 'TAC',
   FINANCE = 'FINANCE',
   AUDITOR = 'AUDITOR',
+  MP = 'MP',
+  CONTRACTOR = 'CONTRACTOR',
   PUBLIC = 'PUBLIC'
 }
 
