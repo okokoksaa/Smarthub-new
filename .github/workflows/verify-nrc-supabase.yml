@@ -1,0 +1,55 @@
+name: Verify NRC with Supabase Local
+
+on:
+  push:
+    paths:
+      - 'Smarthub-new/frontend/supabase/migrations/**'
+      - 'Smarthub-new/frontend/supabase/scripts/**'
+      - 'Smarthub-new/.github/workflows/verify-nrc-supabase.yml'
+  pull_request:
+    paths:
+      - 'Smarthub-new/frontend/supabase/migrations/**'
+      - 'Smarthub-new/frontend/supabase/scripts/**'
+      - 'Smarthub-new/.github/workflows/verify-nrc-supabase.yml'
+
+jobs:
+  supabase-local-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Start Supabase (local Docker stack)
+        working-directory: Smarthub-new/frontend/supabase
+        run: |
+          supabase start
+          # Wait a bit to ensure DB is ready
+          sleep 10
+
+      - name: Apply migrations via Supabase CLI
+        working-directory: Smarthub-new/frontend/supabase
+        env:
+          SUPABASE_DB_URL: postgresql://postgres:postgres@localhost:54322/postgres
+        run: |
+          # Reset ensures a clean schema then applies all migrations
+          supabase db reset --db-url "$SUPABASE_DB_URL"
+
+      - name: Run verification script
+        working-directory: Smarthub-new/frontend/supabase
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:54322/postgres
+        run: bash scripts/verify_nrc_integrity.sh
+
+      - name: Stop Supabase
+        if: always()
+        working-directory: Smarthub-new/frontend/supabase
+        run: supabase stop
+

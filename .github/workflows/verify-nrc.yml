@@ -1,0 +1,62 @@
+name: Verify NRC Constraints
+
+on:
+  push:
+    paths:
+      - 'Smarthub-new/frontend/supabase/migrations/**'
+      - 'Smarthub-new/frontend/supabase/scripts/**'
+  pull_request:
+    paths:
+      - 'Smarthub-new/frontend/supabase/migrations/**'
+      - 'Smarthub-new/frontend/supabase/scripts/**'
+
+jobs:
+  migrate-and-verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Wait for Postgres
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do sleep 1; done
+
+      - name: Enable required extensions
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+
+      - name: Apply migrations in order
+        working-directory: Smarthub-new/frontend/supabase/migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          for f in $(ls -1 *.sql | sort); do
+            echo "Applying $f"
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"
+          done
+
+      - name: Run verification script
+        working-directory: Smarthub-new/frontend/supabase
+        run: bash scripts/verify_nrc_integrity.sh
+
