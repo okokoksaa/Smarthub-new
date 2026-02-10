@@ -19,7 +19,9 @@ async function bootstrap() {
 
   // Get configuration service
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('API_GATEWAY_PORT', 3000);
+  // Render (and many PaaS providers) provide the listening port via PORT
+  const port =
+    configService.get<number>('PORT') ?? configService.get<number>('API_GATEWAY_PORT', 3000);
   const environment = configService.get<string>('NODE_ENV', 'development');
 
   // Global prefix for all routes
