@@ -1,0 +1,305 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # POSTGRESQL DATABASE
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: cdf-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cdf_smarthub
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: cdf_secure_db_password_2024
+      PGDATA: /var/lib/postgresql/data/pgdata
+    # Only expose port externally for development - remove in production
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schemas:/docker-entrypoint-initdb.d:ro
+    deploy:
+      resources:
+        limits:
+          memory: "1G"
+          cpus: "0.5"
+        reservations:
+          memory: "512M"
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - cdf-network
+
+  # ============================================================================
+  # REDIS CACHE
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: cdf-redis
+    restart: unless-stopped
+    command: >
+      redis-server 
+      --appendonly yes 
+      --maxmemory 256mb 
+      --maxmemory-policy allkeys-lru
+    # Only expose port externally for development - remove in production
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: "512M"
+          cpus: "0.25"
+        reservations:
+          memory: "128M"
+          cpus: "0.1"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - cdf-network
+
+  # ============================================================================
+  # KAFKA & ZOOKEEPER
+  # ============================================================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: cdf-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: ${ZOOKEEPER_CLIENT_PORT}
+      ZOOKEEPER_TICK_TIME: ${ZOOKEEPER_TICK_TIME}
+      ZOOKEEPER_SERVER_ID: 1
+    # Internal port only - remove external exposure for production
+    ports:
+      - "2181:2181"
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    deploy:
+      resources:
+        limits:
+          memory: "512M"
+          cpus: "0.5"
+        reservations:
+          memory: "256M"
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "echo", "srvr", "|", "nc", "localhost", "2181"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - cdf-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: cdf-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
+      KAFKA_ZOOKEEPER_CONNECT: ${KAFKA_ZOOKEEPER_CONNECT}
+      KAFKA_ADVERTISED_LISTENERS: ${KAFKA_ADVERTISED_LISTENERS}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
+      KAFKA_INTER_BROKER_LISTENER_NAME: ${KAFKA_INTER_BROKER_LISTENER_NAME}
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR}
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: ${KAFKA_AUTO_CREATE_TOPICS_ENABLE}
+      KAFKA_HEAP_OPTS: "-Xmx512m -Xms256m"
+    # Internal ports only - remove external exposure for production
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    deploy:
+      resources:
+        limits:
+          memory: "1G"
+          cpus: "0.75"
+        reservations:
+          memory: "512M"
+          cpus: "0.5"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - cdf-network
+
+  # ============================================================================
+  # MINIO (S3-compatible storage)
+  # ============================================================================
+  minio:
+    image: minio/minio:latest
+    container_name: cdf-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: cdf_storage_admin
+      MINIO_ROOT_PASSWORD: cdf_secure_storage_password_2024
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: "1G"
+          cpus: "0.5"
+        reservations:
+          memory: "256M"
+          cpus: "0.25"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 40s
+    networks:
+      - cdf-network
+
+  # Create MinIO bucket on startup
+  minio-init:
+    image: minio/mc:latest
+    container_name: cdf-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: "128M"
+          cpus: "0.1"
+    entrypoint: >
+      /bin/sh -c "
+      sleep 10;
+      /usr/bin/mc alias set myminio http://minio:9000 cdf_storage_admin cdf_secure_storage_password_2024;
+      /usr/bin/mc mb myminio/cdf-documents --ignore-existing;
+      /usr/bin/mc policy set download myminio/cdf-documents;
+      echo 'MinIO initialization complete';
+      exit 0;
+      "
+    networks:
+      - cdf-network
+
+  # ============================================================================
+  # MAILHOG (Email testing - development only)
+  # ============================================================================
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: cdf-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    deploy:
+      resources:
+        limits:
+          memory: "128M"
+          cpus: "0.1"
+    networks:
+      - cdf-network
+    profiles:
+      - dev  # Only start in development profile
+
+  # ============================================================================
+  # PGADMIN (Database management - development only)
+  # ============================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: cdf-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_LISTEN_PORT: ${PGADMIN_LISTEN_PORT}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: "512M"
+          cpus: "0.25"
+    networks:
+      - cdf-network
+    profiles:
+      - dev  # Only start in development profile
+
+  # ============================================================================
+  # REDIS COMMANDER (Redis GUI - development only)
+  # ============================================================================
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: cdf-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: ${REDIS_HOSTS}
+      HTTP_USER: admin
+      HTTP_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    ports:
+      - "8081:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: "256M"
+          cpus: "0.1"
+    networks:
+      - cdf-network
+    profiles:
+      - dev  # Only start in development profile
+
+# ============================================================================
+# NETWORKS
+# ============================================================================
+networks:
+  cdf-network:
+    driver: bridge
+    name: cdf-network
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
+volumes:
+  postgres_data:
+    name: cdf_postgres_data
+  redis_data:
+    name: cdf_redis_data
+  kafka_data:
+    name: cdf_kafka_data
+  zookeeper_data:
+    name: cdf_zookeeper_data
+  zookeeper_logs:
+    name: cdf_zookeeper_logs
+  minio_data:
+    name: cdf_minio_data
+  pgadmin_data:
+    name: cdf_pgadmin_data

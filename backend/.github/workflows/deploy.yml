@@ -1,0 +1,177 @@
+name: Build and Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/cdf-smarthub
+
+jobs:
+  # Run tests before building
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm test:cov
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  # Build Docker images
+  build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    strategy:
+      matrix:
+        service:
+          - api-gateway
+          - user-service
+          - project-service
+          - finance-service
+          - document-service
+          - notification-service
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=sha,prefix={{date 'YYYYMMDD'}}-
+            type=raw,value=latest
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.${{ matrix.service }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Deploy to Kubernetes
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://smarthub.cdf.gov.zm
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f kubernetes/namespace.yaml
+          kubectl apply -f kubernetes/configmap.yaml
+          kubectl apply -f kubernetes/postgres-statefulset.yaml
+          kubectl apply -f kubernetes/redis-deployment.yaml
+          kubectl apply -f kubernetes/minio-deployment.yaml
+
+          # Wait for database and storage to be ready
+          kubectl wait --for=condition=ready pod -l app=postgres -n cdf-smarthub --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=minio -n cdf-smarthub --timeout=300s
+
+          # Deploy services
+          kubectl apply -f kubernetes/api-gateway-deployment.yaml
+          kubectl apply -f kubernetes/user-service-deployment.yaml
+          kubectl apply -f kubernetes/project-service-deployment.yaml
+          kubectl apply -f kubernetes/finance-service-deployment.yaml
+          kubectl apply -f kubernetes/document-service-deployment.yaml
+          kubectl apply -f kubernetes/notification-service-deployment.yaml
+
+          # Wait for deployments to be ready
+          kubectl rollout status deployment/api-gateway -n cdf-smarthub
+          kubectl rollout status deployment/user-service -n cdf-smarthub
+          kubectl rollout status deployment/project-service -n cdf-smarthub
+          kubectl rollout status deployment/finance-service -n cdf-smarthub
+          kubectl rollout status deployment/document-service -n cdf-smarthub
+          kubectl rollout status deployment/notification-service -n cdf-smarthub
+
+      - name: Run database migrations
+        run: |
+          kubectl exec -n cdf-smarthub postgres-0 -- psql -U postgres -d cdf_smarthub -f /docker-entrypoint-initdb.d/001_users_and_auth.sql
+          kubectl exec -n cdf-smarthub postgres-0 -- psql -U postgres -d cdf_smarthub -f /docker-entrypoint-initdb.d/002_administrative_structure.sql
+          kubectl exec -n cdf-smarthub postgres-0 -- psql -U postgres -d cdf_smarthub -f /docker-entrypoint-initdb.d/003_projects_and_milestones.sql
+          kubectl exec -n cdf-smarthub postgres-0 -- psql -U postgres -d cdf_smarthub -f /docker-entrypoint-initdb.d/004_budget_and_finance.sql
+          kubectl exec -n cdf-smarthub postgres-0 -- psql -U postgres -d cdf_smarthub -f /docker-entrypoint-initdb.d/005_audit_and_compliance.sql
+          kubectl exec -n cdf-smarthub postgres-0 -- psql -U postgres -d cdf_smarthub -f /docker-entrypoint-initdb.d/006_administrative_hierarchy_and_rls.sql
+
+      - name: Verify deployment
+        run: |
+          kubectl get pods -n cdf-smarthub
+          kubectl get services -n cdf-smarthub
+          kubectl get ingress -n cdf-smarthub
+
+      - name: Send deployment notification
+        if: success()
+        run: |
+          echo "Deployment successful! 🚀"
+          # Add Slack/Teams/Email notification here
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          kubectl rollout undo deployment/api-gateway -n cdf-smarthub
+          kubectl rollout undo deployment/user-service -n cdf-smarthub
+          kubectl rollout undo deployment/project-service -n cdf-smarthub
+          kubectl rollout undo deployment/finance-service -n cdf-smarthub
+          kubectl rollout undo deployment/document-service -n cdf-smarthub
+          kubectl rollout undo deployment/notification-service -n cdf-smarthub

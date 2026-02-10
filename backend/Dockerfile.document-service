@@ -1,0 +1,49 @@
+# Multi-stage build for Document Service
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+RUN npm install -g pnpm
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY services/document-service/package.json ./services/document-service/
+COPY shared/database/package.json ./shared/database/
+
+RUN pnpm install --frozen-lockfile
+
+COPY shared/ ./shared/
+COPY services/document-service/ ./services/document-service/
+
+RUN pnpm --filter @shared/database build
+RUN pnpm --filter document-service build
+
+# Production stage
+FROM node:20-alpine
+
+RUN apk add --no-cache dumb-init
+
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+WORKDIR /app
+
+RUN npm install -g pnpm
+
+COPY --chown=nodejs:nodejs package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY --chown=nodejs:nodejs services/document-service/package.json ./services/document-service/
+COPY --chown=nodejs:nodejs shared/database/package.json ./shared/database/
+
+RUN pnpm install --frozen-lockfile --prod
+
+COPY --chown=nodejs:nodejs --from=builder /app/shared/database/dist ./shared/database/dist
+COPY --chown=nodejs:nodejs --from=builder /app/services/document-service/dist ./services/document-service/dist
+
+USER nodejs
+
+EXPOSE 3004
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3004/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["node", "services/document-service/dist/main.js"]

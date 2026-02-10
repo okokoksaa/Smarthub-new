@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cdf-smarthub-config
+  namespace: cdf-smarthub
+data:
+  # Node Environment
+  NODE_ENV: "production"
+
+  # Service Ports
+  API_GATEWAY_PORT: "3000"
+  USER_SERVICE_PORT: "3001"
+  PROJECT_SERVICE_PORT: "3002"
+  FINANCE_SERVICE_PORT: "3003"
+
+  # Database Configuration
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_DATABASE: "cdf_smarthub"
+  DB_SYNC: "false"
+  DB_LOGGING: "false"
+  DB_POOL_SIZE: "20"
+
+  # Redis Configuration
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_TTL: "3600"
+
+  # Kafka Configuration
+  KAFKA_BROKERS: "kafka-service:9092"
+  KAFKA_CLIENT_ID: "cdf-smarthub"
+  KAFKA_GROUP_ID: "cdf-smarthub-group"
+
+  # MinIO Configuration
+  MINIO_ENDPOINT: "minio-service"
+  MINIO_PORT: "9000"
+  MINIO_USE_SSL: "false"
+  MINIO_BUCKET: "cdf-documents"
+
+  # JWT Configuration
+  JWT_EXPIRATION: "1h"
+  JWT_REFRESH_EXPIRATION: "7d"
+
+  # Rate Limiting
+  RATE_LIMIT_TTL: "60"
+  RATE_LIMIT_MAX: "100"
+
+  # CORS
+  CORS_ORIGIN: "https://smarthub.cdf.gov.zm"
+
+  # Logging
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+
+  # Security
+  BCRYPT_ROUNDS: "12"
+  MFA_WINDOW: "2"
+  PASSWORD_RESET_EXPIRY: "3600"
+
+  # Email Configuration (for notifications)
+  SMTP_HOST: "smtp.gov.zm"
+  SMTP_PORT: "587"
+  SMTP_SECURE: "false"
+  EMAIL_FROM: "noreply@cdf.gov.zm"
+
+  # SMS Configuration (Africa's Talking)
+  SMS_PROVIDER: "africas_talking"
+  SMS_FROM: "CDF_SmartHub"

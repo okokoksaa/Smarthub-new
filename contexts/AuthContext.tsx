@@ -1,105 +1,34 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { User, UserRole, ViewState } from '../types';
+import { AuthApi, User as ApiUser, LoginRequest } from '../lib/api/auth';
+import { socketManager } from '../lib/api-client';
 
 interface AuthContextType {
-  currentUser: User;
-  switchRole: (role: UserRole) => void;
+  currentUser: User | null;
+  loading: boolean;
+  login: (credentials: LoginRequest) => Promise<{ requiresMfa: boolean; sessionToken?: string }>;
+  logout: () => Promise<void>;
+  register: (userData: any) => Promise<void>;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
   canAccessView: (view: ViewState) => boolean;
+  hasRole: (role: string | string[]) => boolean;
+  isAuthenticated: boolean;
+  switchRole: (role: UserRole) => void; // Keep for backward compatibility
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock Users for Personas based on PRD
-const MOCK_USERS: Record<UserRole, User> = {
-  [UserRole.ADMIN]: {
-    id: 'admin-1',
-    name: 'System Admin',
-    email: 'admin@cdf.gov.zm',
-    role: UserRole.ADMIN,
-    scope: 'National - Root',
-    avatarUrl: 'https://ui-avatars.com/api/?name=System+Admin&background=0f172a&color=fff'
-  },
-  [UserRole.MINISTRY]: {
-    id: 'hq-1',
-    name: 'Hon. Minister',
-    email: 'minister@mlgrd.gov.zm',
-    role: UserRole.MINISTRY,
-    scope: 'National',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Hon+Minister&background=0f172a&color=fff'
-  },
-  [UserRole.PLGO]: {
-    id: 'plgo-1',
-    name: 'Provincial Officer',
-    email: 'plgo.lusaka@cdf.gov.zm',
-    role: UserRole.PLGO,
-    scope: 'Lusaka Province',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Provincial+Officer&background=0f172a&color=fff'
-  },
-  [UserRole.CDFC]: {
-    id: 'cdfc-1',
-    name: 'CDFC Chairperson',
-    email: 'chair@kabwata.cdf.zm',
-    role: UserRole.CDFC,
-    scope: 'Kabwata Constituency',
-    avatarUrl: 'https://ui-avatars.com/api/?name=CDFC+Chair&background=0f172a&color=fff'
-  },
-  [UserRole.WDC]: {
-    id: 'wdc-1',
-    name: 'WDC Secretary',
-    email: 'sec@zone4.ward.zm',
-    role: UserRole.WDC,
-    scope: 'Zone 4 Ward',
-    avatarUrl: 'https://ui-avatars.com/api/?name=WDC+Sec&background=0f172a&color=fff'
-  },
-  [UserRole.TAC]: {
-    id: 'tac-1',
-    name: 'District Engineer',
-    email: 'eng.mumba@council.gov.zm',
-    role: UserRole.TAC,
-    scope: 'District Technical',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Dist+Eng&background=0f172a&color=fff'
-  },
-  [UserRole.FINANCE]: {
-    id: 'fin-1',
-    name: 'Council Treasurer',
-    email: 'finance@council.gov.zm',
-    role: UserRole.FINANCE,
-    scope: 'Financial Signatory',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Treasurer&background=0f172a&color=fff'
-  },
-  [UserRole.AUDITOR]: {
-    id: 'aud-1',
-    name: 'Internal Auditor',
-    email: 'audit@oag.gov.zm',
-    role: UserRole.AUDITOR,
-    scope: 'Read Only',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Int+Auditor&background=0f172a&color=fff'
-  },
-  [UserRole.MP]: {
-    id: 'mp-1',
-    name: 'Hon. Member',
-    email: 'mp@parliament.gov.zm',
-    role: UserRole.MP,
-    scope: 'Constituency Oversight',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Hon+MP&background=0f172a&color=fff'
-  },
-  [UserRole.CONTRACTOR]: {
-    id: 'cont-1',
-    name: 'BuildRight Ltd',
-    email: 'info@buildright.zm',
-    role: UserRole.CONTRACTOR,
-    scope: 'Project Specific',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Contractor&background=0f172a&color=fff'
-  },
-  [UserRole.PUBLIC]: {
-    id: 'pub-1',
-    name: 'Citizen Guest',
-    email: 'guest@public',
-    role: UserRole.PUBLIC,
-    scope: 'Public',
-    avatarUrl: 'https://ui-avatars.com/api/?name=Citizen&background=0f172a&color=fff'
-  }
+// Convert API user to local User type
+const convertApiUserToUser = (apiUser: ApiUser): User => {
+  return {
+    id: apiUser.id,
+    name: `${apiUser.firstName} ${apiUser.lastName}`,
+    email: apiUser.email,
+    role: apiUser.role as UserRole,
+    scope: apiUser.tenantScopeLevel,
+    avatarUrl: apiUser.profilePhotoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(apiUser.firstName + '+' + apiUser.lastName)}&background=0f172a&color=fff`
+  };
 };
 
 // Role-to-View Permissions Mapping
@@ -148,23 +77,148 @@ const ROLE_PERMISSIONS: Record<UserRole, ViewState[]> = {
 };
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Default to CDFC for the best demo experience
-  const [currentUser, setCurrentUser] = useState<User>(MOCK_USERS[UserRole.CDFC]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const switchRole = (role: UserRole) => {
-    setCurrentUser(MOCK_USERS[role]);
+  // Initialize authentication state
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const token = localStorage.getItem('accessToken');
+        const userData = localStorage.getItem('user');
+
+        if (token && userData) {
+          const user = JSON.parse(userData);
+          setCurrentUser(convertApiUserToUser(user));
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        // Clear invalid data
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('user');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, []);
+
+  // Listen for logout events
+  useEffect(() => {
+    const handleLogout = () => {
+      setCurrentUser(null);
+      setLoading(false);
+    };
+
+    window.addEventListener('auth:logout', handleLogout);
+    return () => window.removeEventListener('auth:logout', handleLogout);
+  }, []);
+
+  const login = async (credentials: LoginRequest): Promise<{ requiresMfa: boolean; sessionToken?: string }> => {
+    try {
+      setLoading(true);
+      const response = await AuthApi.login(credentials);
+
+      if (response.requiresMfa) {
+        return { requiresMfa: true, sessionToken: 'temp-session' };
+      }
+
+      const user = convertApiUserToUser(response.user);
+      setCurrentUser(user);
+
+      // Connect to WebSocket after successful login
+      try {
+        await socketManager.connect();
+        
+        // Join constituency-specific room if user has constituency scope
+        if (user.scope && user.scope !== 'National') {
+          // Extract constituency ID from scope (assuming scope format like "Kabwata Constituency")
+          const constituencyId = user.scope.replace(' Constituency', '').toLowerCase().replace(' ', '-');
+          socketManager.joinConstituencyRoom(constituencyId);
+        }
+
+        console.log('WebSocket connected and user joined relevant rooms');
+      } catch (wsError) {
+        console.warn('WebSocket connection failed, continuing without real-time features:', wsError);
+      }
+
+      return { requiresMfa: false };
+    } catch (error) {
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const canAccessView = (view: ViewState): boolean => {
+  const logout = async (): Promise<void> => {
+    try {
+      await AuthApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Disconnect WebSocket
+      socketManager.disconnect();
+      setCurrentUser(null);
+    }
+  };
+
+  const register = async (userData: any): Promise<void> => {
+    const user = await AuthApi.register(userData);
+    // Note: User will need to verify email before login
+  };
+
+  const updateProfile = async (updates: Partial<User>): Promise<void> => {
+    if (!currentUser) throw new Error('No authenticated user');
+
+    const updatedUser = await AuthApi.updateProfile(updates);
+    setCurrentUser(convertApiUserToUser(updatedUser));
+    
+    // Update localStorage
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
+  const canAccessView = useCallback((view: ViewState): boolean => {
     // Public portal is accessible to everyone
     if (view === ViewState.PUBLIC_PORTAL) return true;
     
+    if (!currentUser) return false;
+    
     const allowedViews = ROLE_PERMISSIONS[currentUser.role] || [];
     return allowedViews.includes(view);
+  }, [currentUser]);
+
+  const hasRole = useCallback((role: string | string[]): boolean => {
+    if (!currentUser) return false;
+
+    if (Array.isArray(role)) {
+      return role.some(r => currentUser.role === r);
+    }
+
+    return currentUser.role === role;
+  }, [currentUser]);
+
+  // Legacy switchRole for backward compatibility (for demo purposes)
+  const switchRole = (role: UserRole) => {
+    console.warn('switchRole is deprecated. Use proper login/logout flow.');
+  };
+
+  const value = {
+    currentUser,
+    loading,
+    login,
+    logout,
+    register,
+    updateProfile,
+    canAccessView,
+    hasRole,
+    isAuthenticated: !!currentUser,
+    switchRole, // Keep for backward compatibility
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, switchRole, canAccessView }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

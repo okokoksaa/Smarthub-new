@@ -1,0 +1,98 @@
+# ============================================================================
+# CDF Smart Hub - Security-Enhanced Docker Compose Override
+# ============================================================================
+# Use: docker-compose -f docker-compose.yml -f docker-compose.security.yml up -d
+# This file provides additional security configurations
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # ENHANCED SECURITY CONFIGURATIONS
+  # ============================================================================
+  
+  postgres:
+    # Remove external port exposure for production use
+    # ports: []  # Uncomment this line for production
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Postgres needs to write to data directory
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+    user: "999:999"  # postgres user
+    
+  redis:
+    # Remove external port exposure for production use  
+    # ports: []  # Uncomment this line for production
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=50m
+    user: "999:999"  # redis user
+    
+  zookeeper:
+    # Remove external port exposure for production use
+    # ports: []  # Uncomment this line for production  
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Zookeeper needs to write to data directory
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+
+  kafka:
+    # Remove external port exposure for production use
+    # ports: []  # Uncomment this line for production
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Kafka needs to write to data directory  
+    tmpfs:
+      - /tmp:noexec,nosuid,size=200m
+
+  minio:
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # MinIO needs to write to data directory
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+
+  minio-init:
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=10m
+
+  # Development tools - Additional security when enabled
+  pgadmin:
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # PgAdmin needs to write config
+    tmpfs:
+      - /tmp:noexec,nosuid,size=50m
+
+  redis-commander:
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=50m
+
+  mailhog:
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=50m
+
+# ============================================================================
+# ADDITIONAL SECURITY NOTES
+# ============================================================================
+# 1. For production, uncomment the "ports: []" lines to remove external access
+# 2. Consider using Docker secrets instead of environment variables
+# 3. Run services with minimal privileges using specific user IDs
+# 4. Use read-only containers where possible
+# 5. Implement network policies to restrict inter-service communication
+# 6. Regular security scanning of images with tools like Trivy or Snyk
+# ============================================================================

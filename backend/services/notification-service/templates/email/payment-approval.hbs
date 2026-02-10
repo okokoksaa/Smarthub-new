@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Approval Required</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #ffc107; color: #333; padding: 20px; text-align: center;">
+            <h1>Payment Approval Required</h1>
+        </div>
+
+        <div style="padding: 20px;">
+            <h2>Action Required</h2>
+
+            <p>A payment requires your approval as a member of {{panel}}.</p>
+
+            <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
+                <p style="margin: 5px 0;"><strong>Project:</strong> {{projectName}}</p>
+                <p style="margin: 5px 0;"><strong>Amount:</strong> {{paymentAmount}}</p>
+                <p style="margin: 5px 0;"><strong>Panel:</strong> {{panel}}</p>
+            </div>
+
+            <p>Please review the payment details and provide your approval decision.</p>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{approvalLink}}" style="display: inline-block; padding: 15px 30px; background-color: #0066cc; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                    Review Payment
+                </a>
+            </div>
+
+            <p><strong>Important:</strong> This is part of the dual-approval workflow to ensure transparency and prevent corruption.</p>
+
+            <p>Best regards,<br>CDF Smart Hub Team</p>
+        </div>
+
+        <div style="text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <p>Constituency Development Fund - Republic of Zambia</p>
+            <p>&copy; 2024 CDF Smart Hub. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

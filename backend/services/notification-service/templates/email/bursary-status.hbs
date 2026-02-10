@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Bursary Application Update</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: {{#if isApproved}}#28a745{{else}}#6c757d{{/if}}; color: white; padding: 20px; text-align: center;">
+            <h1>Bursary Application Update</h1>
+        </div>
+
+        <div style="padding: 20px;">
+            <p>Dear {{studentName}},</p>
+
+            <p>We are writing to inform you about the status of your bursary application.</p>
+
+            <div style="background-color: #f8f9fa; border-left: 4px solid {{#if isApproved}}#28a745{{else}}#6c757d{{/if}}; padding: 15px; margin: 20px 0;">
+                <p style="margin: 5px 0;"><strong>Application Number:</strong> {{applicationNumber}}</p>
+                <p style="margin: 5px 0;"><strong>Institution:</strong> {{institutionName}}</p>
+                <p style="margin: 5px 0;"><strong>Program:</strong> {{programOfStudy}}</p>
+                <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: {{#if isApproved}}#28a745{{else}}#dc3545{{/if}}; font-weight: bold;">{{status}}</span></p>
+                {{#if approvedAmount}}
+                <p style="margin: 5px 0;"><strong>Approved Amount:</strong> K{{approvedAmount}}</p>
+                {{/if}}
+            </div>
+
+            {{#if isApproved}}
+            <p>Congratulations! Your bursary application has been approved. The funds will be disbursed according to the term schedule.</p>
+
+            {{#if nextSteps}}
+            <h3>Next Steps</h3>
+            <ul style="padding-left: 20px;">
+                {{#each nextSteps}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+            {{/if}}
+            {{else}}
+            <p>Unfortunately, your application was not successful at this time.</p>
+            {{#if rejectionReason}}
+            <p><strong>Reason:</strong> {{rejectionReason}}</p>
+            {{/if}}
+            <p>You may reapply in the next application cycle.</p>
+            {{/if}}
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{applicationLink}}" style="display: inline-block; padding: 15px 30px; background-color: #0066cc; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                    View Application
+                </a>
+            </div>
+
+            <p>Best regards,<br>CDF Smart Hub Team</p>
+        </div>
+
+        <div style="text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <p>Constituency Development Fund - Republic of Zambia</p>
+            <p>&copy; 2024 CDF Smart Hub. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

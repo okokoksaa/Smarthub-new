@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './views/Dashboard';
@@ -26,13 +27,43 @@ import SystemHealth from './views/SystemHealth';
 import { ViewState, UserRole } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Users, ChevronUp } from 'lucide-react';
+import AuthTest from './components/AuthTest';
+
+// Create QueryClient instance
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error: any) => {
+        // Don't retry on 401/403 errors
+        if (error?.response?.status === 401 || error?.response?.status === 403) {
+          return false;
+        }
+        return failureCount < 3;
+      },
+      refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
+    },
+  },
+});
 
 // Inner App Component to consume Auth Context
 const AppContent: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.DASHBOARD);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const { switchRole, currentUser, canAccessView } = useAuth();
+  const { switchRole, currentUser, canAccessView, loading, isAuthenticated } = useAuth();
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false);
+
+  // Show loading state while authentication initializes
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Redirect if user loses access to current view upon role switch
   useEffect(() => {
@@ -79,6 +110,16 @@ const AppContent: React.FC = () => {
   };
 
   const isPublic = currentView === ViewState.PUBLIC_PORTAL;
+  const isDebugMode = import.meta.env.VITE_DEBUG === 'true';
+
+  // Show AuthTest component for testing authentication when not authenticated and in debug mode
+  if (!isAuthenticated && isDebugMode) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <AuthTest />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
@@ -156,9 +197,11 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </QueryClientProvider>
   );
 };
 

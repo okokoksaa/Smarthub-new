@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cdf-smarthub
+  labels:
+    name: cdf-smarthub
+    environment: production
+    app: cdf-smarthub

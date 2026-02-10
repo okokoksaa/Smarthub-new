@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2021",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "strictBindCallApply": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "paths": {
+      "@shared/*": ["shared/*"],
+      "@api-gateway/*": ["services/api-gateway/src/*"],
+      "@user-service/*": ["services/user-service/src/*"],
+      "@project-service/*": ["services/project-service/src/*"],
+      "@finance-service/*": ["services/finance-service/src/*"],
+      "@workflow-service/*": ["services/workflow-service/src/*"],
+      "@document-service/*": ["services/document-service/src/*"],
+      "@audit-service/*": ["services/audit-service/src/*"],
+      "@notification-service/*": ["services/notification-service/src/*"],
+      "@integration-service/*": ["services/integration-service/src/*"],
+      "@ai-service/*": ["services/ai-service/src/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "test", "**/*spec.ts"]
+}

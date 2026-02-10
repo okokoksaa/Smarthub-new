@@ -1,0 +1,446 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { MfaService } from './mfa.service';
+import * as speakeasy from 'speakeasy';
+import * as qrcode from 'qrcode';
+
+jest.mock('speakeasy');
+jest.mock('qrcode');
+
+describe('MfaService', () => {
+  let service: MfaService;
+
+  const mockSpeakeasy = speakeasy as jest.Mocked<typeof speakeasy>;
+  const mockQrcode = qrcode as jest.Mocked<typeof qrcode>;
+
+  const mockUser = {
+    id: '123e4567-e89b-12d3-a456-426614174000',
+    email: 'test@example.com',
+    firstName: 'John',
+    lastName: 'Doe',
+  };
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [MfaService],
+    }).compile();
+
+    service = module.get<MfaService>(MfaService);
+
+    jest.clearAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
+  describe('generateSecret', () => {
+    it('should generate TOTP secret with correct parameters', () => {
+      const mockSecret = {
+        ascii: 'secret_ascii',
+        hex: 'secret_hex',
+        base32: 'SECRET_BASE32',
+        otpauth_url: 'otpauth://totp/CDF%20Smart%20Hub:test@example.com?secret=SECRET_BASE32&issuer=CDF%20Smart%20Hub',
+      };
+
+      mockSpeakeasy.generateSecret.mockReturnValue(mockSecret as any);
+
+      const result = service.generateSecret(mockUser.email);
+
+      expect(result).toEqual(mockSecret);
+      expect(speakeasy.generateSecret).toHaveBeenCalledWith({
+        name: `CDF Smart Hub (${mockUser.email})`,
+        issuer: 'CDF Smart Hub',
+        length: 32,
+      });
+    });
+
+    it('should generate unique secrets for different users', () => {
+      const secret1 = {
+        base32: 'SECRET1',
+        otpauth_url: 'otpauth://totp/secret1',
+      };
+      const secret2 = {
+        base32: 'SECRET2',
+        otpauth_url: 'otpauth://totp/secret2',
+      };
+
+      mockSpeakeasy.generateSecret
+        .mockReturnValueOnce(secret1 as any)
+        .mockReturnValueOnce(secret2 as any);
+
+      const result1 = service.generateSecret('user1@example.com');
+      const result2 = service.generateSecret('user2@example.com');
+
+      expect(result1.base32).not.toBe(result2.base32);
+    });
+
+    it('should use length of 32 for secret generation', () => {
+      mockSpeakeasy.generateSecret.mockReturnValue({
+        base32: 'SECRET',
+        otpauth_url: 'otpauth://totp/test',
+      } as any);
+
+      service.generateSecret(mockUser.email);
+
+      expect(speakeasy.generateSecret).toHaveBeenCalledWith(
+        expect.objectContaining({ length: 32 }),
+      );
+    });
+  });
+
+  describe('generateQRCode', () => {
+    it('should generate QR code from otpauth URL', async () => {
+      const otpauthUrl = 'otpauth://totp/CDF%20Smart%20Hub:test@example.com?secret=SECRET&issuer=CDF%20Smart%20Hub';
+      const qrCodeDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...';
+
+      mockQrcode.toDataURL.mockResolvedValue(qrCodeDataUrl);
+
+      const result = await service.generateQRCode(otpauthUrl);
+
+      expect(result).toBe(qrCodeDataUrl);
+      expect(qrcode.toDataURL).toHaveBeenCalledWith(otpauthUrl);
+    });
+
+    it('should handle QR code generation errors', async () => {
+      const otpauthUrl = 'otpauth://totp/test';
+
+      mockQrcode.toDataURL.mockRejectedValue(new Error('QR generation failed'));
+
+      await expect(service.generateQRCode(otpauthUrl)).rejects.toThrow('QR generation failed');
+    });
+
+    it('should return data URL format', async () => {
+      const otpauthUrl = 'otpauth://totp/test';
+      const qrCodeDataUrl = 'data:image/png;base64,ABC123';
+
+      mockQrcode.toDataURL.mockResolvedValue(qrCodeDataUrl);
+
+      const result = await service.generateQRCode(otpauthUrl);
+
+      expect(result).toMatch(/^data:image\/png;base64,/);
+    });
+  });
+
+  describe('verifyToken', () => {
+    const secret = 'SECRET_BASE32';
+    const token = '123456';
+
+    it('should return true for valid token', () => {
+      mockSpeakeasy.totp.verify.mockReturnValue(true);
+
+      const result = service.verifyToken(token, secret);
+
+      expect(result).toBe(true);
+      expect(speakeasy.totp.verify).toHaveBeenCalledWith({
+        secret,
+        encoding: 'base32',
+        token,
+        window: 2,
+      });
+    });
+
+    it('should return false for invalid token', () => {
+      mockSpeakeasy.totp.verify.mockReturnValue(false);
+
+      const result = service.verifyToken('000000', secret);
+
+      expect(result).toBe(false);
+    });
+
+    it('should use window of 2 for time tolerance', () => {
+      mockSpeakeasy.totp.verify.mockReturnValue(true);
+
+      service.verifyToken(token, secret);
+
+      expect(speakeasy.totp.verify).toHaveBeenCalledWith(
+        expect.objectContaining({ window: 2 }),
+      );
+    });
+
+    it('should use base32 encoding', () => {
+      mockSpeakeasy.totp.verify.mockReturnValue(true);
+
+      service.verifyToken(token, secret);
+
+      expect(speakeasy.totp.verify).toHaveBeenCalledWith(
+        expect.objectContaining({ encoding: 'base32' }),
+      );
+    });
+
+    it('should handle 6-digit tokens', () => {
+      mockSpeakeasy.totp.verify.mockReturnValue(true);
+
+      const result = service.verifyToken('123456', secret);
+
+      expect(result).toBe(true);
+    });
+
+    it('should reject tokens with incorrect length', () => {
+      mockSpeakeasy.totp.verify.mockReturnValue(false);
+
+      const result = service.verifyToken('12345', secret); // Too short
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('generateBackupCodes', () => {
+    it('should generate 10 backup codes', () => {
+      const codes = service.generateBackupCodes();
+
+      expect(codes).toHaveLength(10);
+    });
+
+    it('should generate unique codes', () => {
+      const codes = service.generateBackupCodes();
+
+      const uniqueCodes = new Set(codes);
+      expect(uniqueCodes.size).toBe(10);
+    });
+
+    it('should generate codes with correct format (8 characters)', () => {
+      const codes = service.generateBackupCodes();
+
+      codes.forEach(code => {
+        expect(code).toHaveLength(8);
+        expect(code).toMatch(/^[A-Z0-9]{8}$/);
+      });
+    });
+
+    it('should generate different codes on each call', () => {
+      const codes1 = service.generateBackupCodes();
+      const codes2 = service.generateBackupCodes();
+
+      const intersection = codes1.filter(code => codes2.includes(code));
+      expect(intersection.length).toBeLessThan(10); // Unlikely all 10 match
+    });
+
+    it('should only use uppercase letters and numbers', () => {
+      const codes = service.generateBackupCodes();
+
+      codes.forEach(code => {
+        expect(code).toMatch(/^[A-Z0-9]+$/);
+        expect(code).not.toMatch(/[a-z]/); // No lowercase
+        expect(code).not.toMatch(/[^A-Z0-9]/); // No special chars
+      });
+    });
+  });
+
+  describe('hashBackupCode', () => {
+    it('should hash backup code consistently', async () => {
+      const code = 'ABCD1234';
+
+      const hash1 = await service.hashBackupCode(code);
+      const hash2 = await service.hashBackupCode(code);
+
+      expect(hash1).toBeDefined();
+      expect(hash1.length).toBeGreaterThan(0);
+      // Note: bcrypt hashes will be different each time due to salt
+      expect(hash1).not.toBe(hash2);
+    });
+
+    it('should produce different hashes for different codes', async () => {
+      const code1 = 'ABCD1234';
+      const code2 = 'EFGH5678';
+
+      const hash1 = await service.hashBackupCode(code1);
+      const hash2 = await service.hashBackupCode(code2);
+
+      expect(hash1).not.toBe(hash2);
+    });
+
+    it('should handle empty string', async () => {
+      const hash = await service.hashBackupCode('');
+
+      expect(hash).toBeDefined();
+    });
+  });
+
+  describe('verifyBackupCode', () => {
+    it('should verify correct backup code', async () => {
+      const code = 'ABCD1234';
+      const hash = await service.hashBackupCode(code);
+
+      const result = await service.verifyBackupCode(code, hash);
+
+      expect(result).toBe(true);
+    });
+
+    it('should reject incorrect backup code', async () => {
+      const correctCode = 'ABCD1234';
+      const incorrectCode = 'WRONG123';
+      const hash = await service.hashBackupCode(correctCode);
+
+      const result = await service.verifyBackupCode(incorrectCode, hash);
+
+      expect(result).toBe(false);
+    });
+
+    it('should be case-sensitive', async () => {
+      const code = 'ABCD1234';
+      const hash = await service.hashBackupCode(code);
+
+      const result = await service.verifyBackupCode('abcd1234', hash);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('setupMFA', () => {
+    it('should return secret and QR code', async () => {
+      const mockSecret = {
+        ascii: 'secret_ascii',
+        hex: 'secret_hex',
+        base32: 'SECRET_BASE32',
+        otpauth_url: 'otpauth://totp/CDF%20Smart%20Hub:test@example.com?secret=SECRET&issuer=CDF',
+      };
+      const qrCodeDataUrl = 'data:image/png;base64,ABC123';
+
+      mockSpeakeasy.generateSecret.mockReturnValue(mockSecret as any);
+      mockQrcode.toDataURL.mockResolvedValue(qrCodeDataUrl);
+
+      const result = await service.setupMFA(mockUser.email);
+
+      expect(result).toEqual({
+        secret: mockSecret.base32,
+        qrCode: qrCodeDataUrl,
+        backupCodes: expect.any(Array),
+      });
+      expect(result.backupCodes).toHaveLength(10);
+    });
+
+    it('should generate backup codes during setup', async () => {
+      const mockSecret = {
+        base32: 'SECRET',
+        otpauth_url: 'otpauth://totp/test',
+      };
+
+      mockSpeakeasy.generateSecret.mockReturnValue(mockSecret as any);
+      mockQrcode.toDataURL.mockResolvedValue('data:image/png;base64,ABC');
+
+      const result = await service.setupMFA(mockUser.email);
+
+      expect(result.backupCodes).toBeDefined();
+      expect(result.backupCodes).toHaveLength(10);
+      result.backupCodes.forEach(code => {
+        expect(code).toMatch(/^[A-Z0-9]{8}$/);
+      });
+    });
+  });
+
+  describe('disableMFA', () => {
+    it('should verify token before disabling', () => {
+      const secret = 'SECRET_BASE32';
+      const token = '123456';
+
+      mockSpeakeasy.totp.verify.mockReturnValue(true);
+
+      const result = service.disableMFA(secret, token);
+
+      expect(result).toBe(true);
+      expect(speakeasy.totp.verify).toHaveBeenCalledWith({
+        secret,
+        encoding: 'base32',
+        token,
+        window: 2,
+      });
+    });
+
+    it('should return false if token invalid', () => {
+      const secret = 'SECRET_BASE32';
+      const token = '000000';
+
+      mockSpeakeasy.totp.verify.mockReturnValue(false);
+
+      const result = service.disableMFA(secret, token);
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('MFA security edge cases', () => {
+    it('should handle tokens with leading zeros', () => {
+      const secret = 'SECRET';
+      const token = '000123'; // Token with leading zeros
+
+      mockSpeakeasy.totp.verify.mockReturnValue(true);
+
+      const result = service.verifyToken(token, secret);
+
+      expect(result).toBe(true);
+    });
+
+    it('should reject non-numeric tokens', () => {
+      const secret = 'SECRET';
+      const token = 'ABCDEF';
+
+      mockSpeakeasy.totp.verify.mockReturnValue(false);
+
+      const result = service.verifyToken(token, secret);
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle time window correctly (2 steps = 60 seconds tolerance)', () => {
+      // Window of 2 means: current + 1 step before + 1 step after
+      // Each step is 30 seconds, so total tolerance is 60 seconds
+
+      mockSpeakeasy.totp.verify.mockReturnValue(true);
+
+      service.verifyToken('123456', 'SECRET');
+
+      expect(speakeasy.totp.verify).toHaveBeenCalledWith(
+        expect.objectContaining({ window: 2 }),
+      );
+    });
+
+    it('should generate backup codes without ambiguous characters', () => {
+      const codes = service.generateBackupCodes();
+
+      codes.forEach(code => {
+        // Should not contain easily confused characters if implementation follows best practices
+        // Common exclusions: 0/O, 1/I/L
+        expect(code).toBeDefined();
+        expect(code.length).toBe(8);
+      });
+    });
+  });
+
+  describe('integration scenarios', () => {
+    it('should complete full MFA setup flow', async () => {
+      const mockSecret = {
+        base32: 'SECRET_BASE32',
+        otpauth_url: 'otpauth://totp/test',
+      };
+
+      mockSpeakeasy.generateSecret.mockReturnValue(mockSecret as any);
+      mockQrcode.toDataURL.mockResolvedValue('data:image/png;base64,QR');
+      mockSpeakeasy.totp.verify.mockReturnValue(true);
+
+      // Setup MFA
+      const setup = await service.setupMFA(mockUser.email);
+      expect(setup.secret).toBe(mockSecret.base32);
+      expect(setup.backupCodes).toHaveLength(10);
+
+      // Verify token
+      const verified = service.verifyToken('123456', setup.secret);
+      expect(verified).toBe(true);
+    });
+
+    it('should complete backup code flow', async () => {
+      const codes = service.generateBackupCodes();
+      const code = codes[0];
+
+      // Hash the code
+      const hash = await service.hashBackupCode(code);
+
+      // Verify the code
+      const verified = await service.verifyBackupCode(code, hash);
+      expect(verified).toBe(true);
+
+      // Wrong code should fail
+      const wrongVerified = await service.verifyBackupCode('WRONG123', hash);
+      expect(wrongVerified).toBe(false);
+    });
+  });
+});

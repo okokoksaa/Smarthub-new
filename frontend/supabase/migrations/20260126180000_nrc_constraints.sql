@@ -37,30 +37,42 @@ $$;
 comment on function public.is_valid_nrc(text) is 'Validates Zambia NRC format: 6 digits, slash, 2-digit district (01-99), slash, 1 digit.';
 
 -- Empowerment Grants: applicant_nrc must be valid and unique (normalized)
-alter table if exists public.empowerment_grants
-  add constraint if not exists chk_empowerment_grants_applicant_nrc_format
-  check (applicant_nrc is null or public.is_valid_nrc(applicant_nrc));
+DO $$ BEGIN
+  ALTER TABLE public.empowerment_grants
+    ADD CONSTRAINT chk_empowerment_grants_applicant_nrc_format
+    CHECK (applicant_nrc IS NULL OR public.is_valid_nrc(applicant_nrc));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-create unique index if not exists uidx_empowerment_grants_applicant_nrc_norm
-  on public.empowerment_grants (public.normalize_nrc(applicant_nrc))
-  where applicant_nrc is not null;
+CREATE UNIQUE INDEX IF NOT EXISTS uidx_empowerment_grants_applicant_nrc_norm
+  ON public.empowerment_grants (public.normalize_nrc(applicant_nrc))
+  WHERE applicant_nrc IS NOT NULL;
 
 -- Bursary Applications: student_nrc must be valid and unique (normalized)
-alter table if exists public.bursary_applications
-  add constraint if not exists chk_bursary_applications_student_nrc_format
-  check (student_nrc is null or public.is_valid_nrc(student_nrc));
+DO $$ BEGIN
+  ALTER TABLE public.bursary_applications
+    ADD CONSTRAINT chk_bursary_applications_student_nrc_format
+    CHECK (student_nrc IS NULL OR public.is_valid_nrc(student_nrc));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-create unique index if not exists uidx_bursary_applications_student_nrc_norm
-  on public.bursary_applications (public.normalize_nrc(student_nrc))
-  where student_nrc is not null;
+CREATE UNIQUE INDEX IF NOT EXISTS uidx_bursary_applications_student_nrc_norm
+  ON public.bursary_applications (public.normalize_nrc(student_nrc))
+  WHERE student_nrc IS NOT NULL;
 
 -- Bursary Applications: guardian_nrc must be valid (not unique; guardians may support multiple students)
-alter table if exists public.bursary_applications
-  add constraint if not exists chk_bursary_applications_guardian_nrc_format
-  check (guardian_nrc is null or public.is_valid_nrc(guardian_nrc));
+DO $$ BEGIN
+  ALTER TABLE public.bursary_applications
+    ADD CONSTRAINT chk_bursary_applications_guardian_nrc_format
+    CHECK (guardian_nrc IS NULL OR public.is_valid_nrc(guardian_nrc));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- WDC Signoffs: chair_nrc must be valid (not unique; same chair can sign multiple meetings)
-alter table if exists public.wdc_signoffs
-  add constraint if not exists chk_wdc_signoffs_chair_nrc_format
-  check (chair_nrc is null or public.is_valid_nrc(chair_nrc));
+DO $$ BEGIN
+  ALTER TABLE public.wdc_signoffs
+    ADD CONSTRAINT chk_wdc_signoffs_chair_nrc_format
+    CHECK (chair_nrc IS NULL OR public.is_valid_nrc(chair_nrc));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 

@@ -1,0 +1,102 @@
+{
+  "human_actors": [
+    {
+      "role": "Member of Parliament (MP)",
+      "count": 156,
+      "description": "Oversight of constituency CDF operations, champion projects, read-only dashboard access.",
+      "level": "Legislative"
+    },
+    {
+      "role": "CDFC Chairperson",
+      "count": 156,
+      "description": "Chairs committee, primary approval authority for project prioritization, manages meetings.",
+      "level": "Constituency"
+    },
+    {
+      "role": "CDFC Members",
+      "count": 1404,
+      "description": "Participate in project evaluation and voting, review applications.",
+      "level": "Constituency"
+    },
+    {
+      "role": "Local Authority Finance Officer",
+      "count": 250,
+      "description": "Manages CDF accounts, processes payments, prepares financial reports.",
+      "level": "Constituency"
+    },
+    {
+      "role": "Ward Development Committee (WDC) Members",
+      "count": 1872,
+      "description": "Community engagement, needs assessment, assist application preparation, monitor local projects.",
+      "level": "Ward"
+    },
+    {
+      "role": "TAC Members (Technical Appraisal Committee)",
+      "count": 90,
+      "description": "Technical feasibility assessment, ZPPA compliance verification, provide recommendations.",
+      "level": "Technical Appraisal"
+    },
+    {
+      "role": "TAC Chairperson",
+      "count": 10,
+      "description": "Coordinates TAC reviews, consolidates appraisal recommendations.",
+      "level": "Technical Appraisal"
+    },
+    {
+      "role": "PLGO Officers (Permanent Secretary - Local Government Officer)",
+      "count": 10,
+      "description": "Final project approval authority at provincial level, coordination and oversight.",
+      "level": "Provincial"
+    },
+    {
+      "role": "Ministry Officials",
+      "count": 100,
+      "description": "National oversight, policy direction, performance monitoring.",
+      "level": "Ministry"
+    },
+    {
+      "role": "Auditors (Office of Auditor General)",
+      "count": 50,
+      "description": "Forensic access to all records, compliance verification.",
+      "level": "Oversight & Audit"
+    },
+    {
+      "role": "Contractors/Suppliers",
+      "count": 5000,
+      "description": "Submit claims and documentation, receive payment notifications.",
+      "level": "Service Providers"
+    },
+    {
+      "role": "Citizens",
+      "count": 18000000,
+      "description": "View published project information, submit feedback, verify documents.",
+      "level": "Public"
+    }
+  ],
+  "system_actors": [
+    {
+      "actor": "Bank Integration System",
+      "description": "Automated transaction import and reconciliation."
+    },
+    {
+      "actor": "ZPPA Integration",
+      "description": "Procurement compliance verification."
+    },
+    {
+      "actor": "Government e-Signature Authority",
+      "description": "Digital signature validation."
+    },
+    {
+      "actor": "SMS/Email Gateway",
+      "description": "Notification delivery."
+    },
+    {
+      "actor": "AI/ML Analytics Engine",
+      "description": "Anomaly detection and risk scoring."
+    },
+    {
+      "actor": "Blockchain Verification Service",
+      "description": "Audit log integrity verification."
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import ProjectList from '../components/ProjectList';
 import { 
   HardHat, 
   FileCheck, 
@@ -42,35 +43,7 @@ const Projects: React.FC = () => {
   const [showVariationForm, setShowVariationForm] = useState(false);
   const [newVariation, setNewVariation] = useState({ type: 'Cost', amount: 0, days: 0, reason: '' });
 
-  const mockProjects: Project[] = [
-    { 
-      id: 'PRJ-001', 
-      title: 'Construction of Maternity Wing - Zone B', 
-      contractor: 'BuildRight Ltd', 
-      originalBudget: 450000, 
-      currentBudget: 495000, 
-      startDate: '2024-01-15', 
-      endDate: '2024-11-30', 
-      status: 'Active',
-      progress: 65,
-      variations: [
-        { id: 'VAR-001', type: 'Cost', description: 'Foundation depth increase due to soil type', amount: 45000, days: 5, status: 'Approved', date: '2024-02-20' }
-      ]
-    },
-    {
-      id: 'PRJ-002',
-      title: 'Solar Street Lighting - Kabwata Main',
-      contractor: 'SunTech Zambia',
-      originalBudget: 200000,
-      currentBudget: 200000,
-      startDate: '2024-03-01',
-      endDate: '2024-06-01',
-      status: 'Active',
-      progress: 40,
-      variations: []
-    }
-  ];
-
+  
   // Enforcement Logic Calculator
   const getCumulativeVariation = (project: Project) => {
     const approved = project.variations
@@ -105,7 +78,7 @@ const Projects: React.FC = () => {
                     {project.id} • {project.contractor}
                   </p>
                </div>
-               <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500">
+               <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full text-slate-500" aria-label="Close project details">
                   <X size={20} />
                </button>
             </div>
@@ -152,8 +125,9 @@ const Projects: React.FC = () => {
                         <h5 className="font-bold text-slate-800 text-sm mb-4">New Variation Request</h5>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                            <div>
-                              <label className="block text-xs font-bold text-slate-500 mb-1">Type</label>
+                              <label htmlFor="variation-type" className="block text-xs font-bold text-slate-500 mb-1">Type</label>
                               <select 
+                                 id="variation-type"
                                  className="w-full border border-slate-300 rounded-lg p-2 text-sm"
                                  onChange={(e) => setNewVariation({...newVariation, type: e.target.value as any})}
                               >
@@ -283,76 +257,7 @@ const Projects: React.FC = () => {
              <h3 className="font-bold text-slate-800">Active Projects List</h3>
           </div>
           
-          <div className="space-y-4">
-             {mockProjects.map((project) => (
-                <div key={project.id} className="border border-slate-100 rounded-lg p-4 hover:bg-slate-50 transition-colors">
-                   <div className="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-2">
-                      <div>
-                         <h4 className="font-bold text-slate-800 text-lg">{project.title}</h4>
-                         <p className="text-xs text-slate-500">Contractor: {project.contractor} | End Date: {project.endDate}</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                         <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
-                            {project.status}
-                         </span>
-                         <button 
-                            onClick={() => setSelectedProject(project)}
-                            className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
-                         >
-                            Manage Variations
-                         </button>
-                      </div>
-                   </div>
-                   
-                   {/* Milestones */}
-                   <div className="relative mt-6 mb-2">
-                      <div className="absolute top-1/2 left-0 w-full h-1 bg-slate-100 -translate-y-1/2 rounded-full -z-10"></div>
-                      <div className="flex justify-between">
-                         <div className="flex flex-col items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-white text-xs">
-                               <FileCheck size={14} />
-                            </div>
-                            <span className="text-[10px] font-medium text-slate-600">Site Handover</span>
-                         </div>
-                         <div className="flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs ${project.progress >= 30 ? 'bg-green-500' : 'bg-slate-200 text-slate-400'}`}>
-                               <HardHat size={14} />
-                            </div>
-                            <span className="text-[10px] font-medium text-slate-600">Foundation</span>
-                         </div>
-                         <div className="flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs ${project.progress >= 60 ? 'bg-green-500' : 'bg-slate-200 text-slate-400'}`}>
-                               3
-                            </div>
-                            <span className="text-[10px] font-medium text-slate-600">Roof Level</span>
-                         </div>
-                         <div className="flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs ${project.progress >= 90 ? 'bg-green-500' : 'bg-slate-200 text-slate-400'}`}>
-                               4
-                            </div>
-                            <span className="text-[10px] font-medium text-slate-600">Finishes</span>
-                         </div>
-                         <div className="flex flex-col items-center gap-2">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs ${project.progress === 100 ? 'bg-green-500' : 'bg-slate-200 text-slate-400'}`}>
-                               5
-                            </div>
-                            <span className="text-[10px] font-medium text-slate-600">Handover</span>
-                         </div>
-                      </div>
-                   </div>
-                   
-                   {/* Variation Warnings */}
-                   {project.variations.length > 0 && (
-                      <div className="mt-4 flex gap-2">
-                         <div className="flex items-center gap-2 text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded border border-amber-100">
-                            <AlertTriangle size={14} />
-                            <span>{project.variations.length} Variations Recorded (+K{getCumulativeVariation(project).toLocaleString()})</span>
-                         </div>
-                      </div>
-                   )}
-                </div>
-             ))}
-          </div>
+          <ProjectList constituencyId={156} />
        </div>
     </div>
   );

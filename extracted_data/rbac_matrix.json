@@ -1,0 +1,135 @@
+{
+  "permission_domains": [
+    {
+      "domain": "PROJECT MANAGEMENT",
+      "permissions": [
+        {
+          "name": "Create project application",
+          "roles": {
+            "WDC Member": { "access": "permitted", "scope": "Ward only" },
+            "CDFC Chair": { "access": "permitted", "scope": "Constituency" },
+            "CDFC Member": { "access": "permitted", "scope": "Constituency" },
+            "Finance Officer": { "access": "forbidden" },
+            "TAC Member": { "access": "forbidden" },
+            "TAC Chair": { "access": "forbidden" },
+            "PLGO": { "access": "forbidden" },
+            "MP": { "access": "forbidden" },
+            "Ministry": { "access": "forbidden" },
+            "Auditor": { "access": "forbidden" },
+            "Contractor": { "access": "permitted", "scope": "Own" },
+            "Citizen": { "access": "permitted", "scope": "Submit" },
+            "System Admin": { "access": "forbidden" }
+          }
+        },
+        {
+          "name": "Edit pending application",
+          "roles": {
+            "WDC Member": { "access": "permitted", "scope": "Own ward" },
+            "CDFC Chair": { "access": "permitted", "scope": "Before CDFC review" },
+            "CDFC Member": { "access": "forbidden" },
+            "Finance Officer": { "access": "forbidden" },
+            "TAC Member": { "access": "forbidden" },
+            "TAC Chair": { "access": "forbidden" },
+            "PLGO": { "access": "forbidden" },
+            "MP": { "access": "forbidden" },
+            "Ministry": { "access": "forbidden" },
+            "Auditor": { "access": "forbidden" },
+            "Contractor": { "access": "permitted", "scope": "Own, before submission" },
+            "Citizen": { "access": "permitted", "scope": "Own, before submission" },
+            "System Admin": { "access": "forbidden" }
+          }
+        },
+        {
+          "name": "View project details",
+          "roles": {
+            "WDC Member": { "access": "permitted", "scope": "Ward only" },
+            "CDFC Chair": { "access": "permitted", "scope": "Constituency" },
+            "CDFC Member": { "access": "permitted", "scope": "Constituency" },
+            "Finance Officer": { "access": "permitted", "scope": "Constituency" },
+            "TAC Member": { "access": "permitted", "scope": "Assigned TAC zone" },
+            "TAC Chair": { "access": "permitted", "scope": "Province" },
+            "PLGO": { "access": "permitted", "scope": "Province" },
+            "MP": { "access": "permitted", "scope": "Constituency" },
+            "Ministry": { "access": "permitted", "scope": "National" },
+            "Auditor": { "access": "permitted", "scope": "National" },
+            "Contractor": { "access": "permitted", "scope": "Own" },
+            "Citizen": { "access": "permitted", "scope": "Published only" },
+            "System Admin": { "access": "permitted", "scope": "National" }
+          }
+        },
+        {
+          "name": "Approve/Reject project",
+          "roles": {
+            "WDC Member": { "access": "forbidden" },
+            "CDFC Chair": { "access": "permitted", "scope": "CDFC vote" },
+            "CDFC Member": { "access": "permitted", "scope": "CDFC vote" },
+            "Finance Officer": { "access": "forbidden" },
+            "TAC Member": { "access": "forbidden" },
+            "TAC Chair": { "access": "forbidden" },
+            "PLGO": { "access": "permitted", "scope": "Final" },
+            "MP": { "access": "forbidden" },
+            "Ministry": { "access": "forbidden" },
+            "Auditor": { "access": "forbidden" },
+            "Contractor": { "access": "forbidden" },
+            "Citizen": { "access": "forbidden" },
+            "System Admin": { "access": "forbidden" }
+          }
+        },
+        {
+          "name": "Appraise project",
+          "roles": {
+            "WDC Member": { "access": "forbidden" },
+            "CDFC Chair": { "access": "forbidden" },
+            "CDFC Member": { "access": "forbidden" },
+            "Finance Officer": { "access": "forbidden" },
+            "TAC Member": { "access": "permitted", "scope": "Assigned" },
+            "TAC Chair": { "access": "permitted", "scope": "Consolidate" },
+            "PLGO": { "access": "forbidden" },
+            "MP": { "access": "forbidden" },
+            "Ministry": { "access": "forbidden" },
+            "Auditor": { "access": "forbidden" },
+            "Contractor": { "access": "forbidden" },
+            "Citizen": { "access": "forbidden" },
+            "System Admin": { "access": "forbidden" }
+          }
+        },
+        {
+          "name": "Cancel approved project",
+          "roles": {
+            "WDC Member": { "access": "forbidden" },
+            "CDFC Chair": { "access": "forbidden" },
+            "CDFC Member": { "access": "forbidden" },
+            "Finance Officer": { "access": "forbidden" },
+            "TAC Member": { "access": "forbidden" },
+            "TAC Chair": { "access": "forbidden" },
+            "PLGO": { "access": "permitted", "scope": "With justification" },
+            "MP": { "access": "forbidden" },
+            "Ministry": { "access": "forbidden" },
+            "Auditor": { "access": "forbidden" },
+            "Contractor": { "access": "forbidden" },
+            "Citizen": { "access": "forbidden" },
+            "System Admin": { "access": "forbidden" }
+          }
+        },
+        {
+          "name": "Modify approved project",
+          "roles": {
+            "WDC Member": { "access": "forbidden" },
+            "CDFC Chair": { "access": "forbidden" },
+            "CDFC Member": { "access": "forbidden" },
+            "Finance Officer": { "access": "forbidden" },
+            "TAC Member": { "access": "forbidden" },
+            "TAC Chair": { "access": "forbidden" },
+            "PLGO": { "access": "forbidden" },
+            "MP": { "access": "forbidden" },
+            "Ministry": { "access": "forbidden" },
+            "Auditor": { "access": "forbidden" },
+            "Contractor": { "access": "forbidden" },
+            "Citizen": { "access": "forbidden" },
+            "System Admin": { "access": "forbidden" }
+          }
+        }
+      ]
+    }
+  ]
+}

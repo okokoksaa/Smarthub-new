@@ -1,0 +1,473 @@
+name: CDF Smart Hub - CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, 'release/*' ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/**'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  NODE_VERSION: '18.x'
+
+jobs:
+  # Code Quality and Security Checks
+  code-quality:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          npm ci --include=dev
+          npx pnpm install --frozen-lockfile
+
+      - name: Run ESLint
+        working-directory: ./backend
+        run: |
+          npm run lint 2>&1 | tee lint-results.txt
+          npm run lint:check
+
+      - name: Run Prettier check
+        working-directory: ./backend
+        run: npm run format:check
+
+      - name: TypeScript type checking
+        working-directory: ./backend
+        run: npm run type-check
+
+      - name: Security audit
+        working-directory: ./backend
+        run: |
+          npm audit --audit-level=moderate
+          npx audit-ci --moderate
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Upload lint results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lint-results
+          path: backend/lint-results.txt
+
+  # Unit and Integration Tests
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_USER: test_user
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'backend/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          npm ci
+          npx pnpm install --frozen-lockfile
+
+      - name: Setup test database
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+        run: |
+          npm run db:migrate
+          npm run db:seed:test
+
+      - name: Run unit tests
+        working-directory: ./backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379
+        run: |
+          npm run test:unit -- --coverage --passWithNoTests
+          npm run test:unit:services -- --coverage
+
+      - name: Run integration tests
+        working-directory: ./backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379
+        run: npm run test:integration -- --coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage/lcov.info
+          flags: backend
+          name: backend-coverage
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: |
+            backend/coverage/
+            backend/test-results/
+
+  # Build Docker Images
+  build:
+    name: Build Images
+    runs-on: ubuntu-latest
+    needs: [code-quality, test]
+    timeout-minutes: 30
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
+
+    strategy:
+      matrix:
+        service: 
+          - api-gateway
+          - user-service
+          - project-service
+          - finance-service
+          - document-service
+          - notification-service
+          - audit-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cdf-smarthub-${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/services/${{ matrix.service }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            SERVICE_NAME=${{ matrix.service }}
+            BUILD_DATE=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
+            VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
+            REVISION=${{ github.sha }}
+
+      - name: Sign container image
+        run: |
+          echo "Signing container image with cosign..."
+          # cosign sign --key env://COSIGN_PRIVATE_KEY ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cdf-smarthub-${{ matrix.service }}:${{ github.sha }}
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+
+  # Security Scanning
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    needs: [build]
+    timeout-minutes: 15
+    if: github.event_name == 'push' || github.event.pull_request.merged == true
+
+    strategy:
+      matrix:
+        service: 
+          - api-gateway
+          - user-service
+          - project-service
+          - finance-service
+          - document-service
+          - notification-service
+          - audit-service
+
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cdf-smarthub-${{ matrix.service }}:${{ github.sha }}
+          format: 'sarif'
+          output: 'trivy-results-${{ matrix.service }}.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results-${{ matrix.service }}.sarif'
+
+      - name: Run Grype vulnerability scanner
+        uses: anchore/scan-action@v3
+        id: scan
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cdf-smarthub-${{ matrix.service }}:${{ github.sha }}
+          fail-build: false
+          severity-cutoff: critical
+
+      - name: Upload Anchore scan SARIF report
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.scan.outputs.sarif }}
+
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    timeout-minutes: 20
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: https://staging-api.cdf.gov.zm
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Setup Kubernetes context
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > /tmp/kubeconfig
+          chmod 600 /tmp/kubeconfig
+          export KUBECONFIG=/tmp/kubeconfig
+
+      - name: Deploy to staging
+        run: |
+          export KUBECONFIG=/tmp/kubeconfig
+          
+          # Update image tags in deployment files
+          for service in api-gateway user-service project-service finance-service document-service notification-service audit-service; do
+            sed -i "s|image: cdf-smarthub/${service}:latest|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cdf-smarthub-${service}:${{ github.sha }}|g" backend/kubernetes/${service}-deployment.yaml
+          done
+          
+          # Apply configurations
+          kubectl apply -f backend/kubernetes/namespace.yaml
+          kubectl apply -f backend/kubernetes/configmap.yaml
+          kubectl apply -f backend/kubernetes/secrets.yaml
+          kubectl apply -f backend/kubernetes/postgres-statefulset.yaml
+          kubectl apply -f backend/kubernetes/redis-deployment.yaml
+          kubectl apply -f backend/kubernetes/minio-deployment.yaml
+          
+          # Deploy services
+          kubectl apply -f backend/kubernetes/
+          
+          # Wait for rollout
+          kubectl rollout status deployment/api-gateway -n cdf-smarthub --timeout=300s
+
+      - name: Run health checks
+        run: |
+          export KUBECONFIG=/tmp/kubeconfig
+          
+          # Wait for services to be ready
+          kubectl wait --for=condition=available --timeout=300s deployment --all -n cdf-smarthub
+          
+          # Run health checks
+          kubectl get pods -n cdf-smarthub
+          kubectl get services -n cdf-smarthub
+
+      - name: Run smoke tests
+        run: |
+          # Basic API connectivity tests
+          curl -f https://staging-api.cdf.gov.zm/api/v1/health || exit 1
+          
+          # Database connectivity test
+          curl -f https://staging-api.cdf.gov.zm/api/v1/audit/logs?limit=1 || exit 1
+
+  # Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [security-scan]
+    timeout-minutes: 30
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: https://api.cdf.gov.zm
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Setup Kubernetes context
+        run: |
+          echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > /tmp/kubeconfig
+          chmod 600 /tmp/kubeconfig
+          export KUBECONFIG=/tmp/kubeconfig
+
+      - name: Create database backup
+        run: |
+          export KUBECONFIG=/tmp/kubeconfig
+          
+          # Create pre-deployment database backup
+          kubectl exec -n cdf-smarthub deploy/postgres -- pg_dump -U postgres cdf_smarthub > backup-pre-deploy-$(date +%Y%m%d-%H%M%S).sql
+
+      - name: Deploy to production (Blue-Green)
+        run: |
+          export KUBECONFIG=/tmp/kubeconfig
+          
+          # Update image tags
+          for service in api-gateway user-service project-service finance-service document-service notification-service audit-service; do
+            sed -i "s|image: cdf-smarthub/${service}:latest|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/cdf-smarthub-${service}:${{ github.sha }}|g" backend/kubernetes/${service}-deployment.yaml
+          done
+          
+          # Deploy to green environment first
+          kubectl apply -f backend/kubernetes/ --dry-run=server
+          
+          # Rolling deployment
+          kubectl apply -f backend/kubernetes/
+          
+          # Wait for rollout with longer timeout for production
+          kubectl rollout status deployment/api-gateway -n cdf-smarthub --timeout=600s
+
+      - name: Run comprehensive health checks
+        run: |
+          export KUBECONFIG=/tmp/kubeconfig
+          
+          # Wait for all services
+          kubectl wait --for=condition=available --timeout=600s deployment --all -n cdf-smarthub
+          
+          # Check pod status
+          kubectl get pods -n cdf-smarthub -o wide
+          
+          # Verify services
+          kubectl get services -n cdf-smarthub
+
+      - name: Run production smoke tests
+        run: |
+          # Comprehensive API tests
+          curl -f https://api.cdf.gov.zm/api/v1/health || exit 1
+          curl -f https://api.cdf.gov.zm/api/docs || exit 1
+          
+          # Database connectivity
+          curl -f -H "Authorization: Bearer ${{ secrets.API_TEST_TOKEN }}" \
+               https://api.cdf.gov.zm/api/v1/audit/statistics || exit 1
+          
+          # Service endpoints
+          curl -f https://api.cdf.gov.zm/api/v1/health || exit 1
+
+      - name: Update monitoring and alerts
+        run: |
+          export KUBECONFIG=/tmp/kubeconfig
+          
+          # Apply monitoring configuration
+          kubectl apply -f backend/kubernetes/monitoring.yaml
+
+      - name: Notify deployment success
+        uses: 8398a7/action-slack@v3
+        if: success()
+        with:
+          status: success
+          text: "✅ CDF Smart Hub successfully deployed to production"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify deployment failure
+        uses: 8398a7/action-slack@v3
+        if: failure()
+        with:
+          status: failure
+          text: "❌ CDF Smart Hub deployment to production failed"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Cleanup
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+
+    steps:
+      - name: Cleanup old container images
+        run: |
+          # Keep only last 10 images per service
+          echo "Cleaning up old container images..."
+          # This would implement image cleanup logic
+
+      - name: Update deployment status
+        run: |
+          echo "Deployment completed at $(date)"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref }}"

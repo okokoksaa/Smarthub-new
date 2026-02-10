@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Committee Meeting Notification</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #17a2b8; color: white; padding: 20px; text-align: center;">
+            <h1>📅 Committee Meeting</h1>
+        </div>
+
+        <div style="padding: 20px;">
+            <p>Dear {{recipientName}},</p>
+
+            <p>You are invited to attend the following committee meeting.</p>
+
+            <div style="background-color: #e2f0f7; border-left: 4px solid #17a2b8; padding: 15px; margin: 20px 0;">
+                <p style="margin: 5px 0;"><strong>Committee:</strong> {{committeeName}}</p>
+                <p style="margin: 5px 0;"><strong>Meeting Type:</strong> {{meetingType}}</p>
+                <p style="margin: 5px 0;"><strong>Date:</strong> {{meetingDate}}</p>
+                <p style="margin: 5px 0;"><strong>Time:</strong> {{meetingTime}}</p>
+                <p style="margin: 5px 0;"><strong>Venue:</strong> {{venue}}</p>
+                {{#if virtualLink}}
+                <p style="margin: 5px 0;"><strong>Virtual Link:</strong> <a href="{{virtualLink}}">Join Online</a></p>
+                {{/if}}
+            </div>
+
+            {{#if agenda}}
+            <h3>Agenda</h3>
+            <ul style="padding-left: 20px;">
+                {{#each agenda}}
+                <li>{{this}}</li>
+                {{/each}}
+            </ul>
+            {{/if}}
+
+            {{#if projectsForReview}}
+            <h3>Projects for Review</h3>
+            <ul style="padding-left: 20px;">
+                {{#each projectsForReview}}
+                <li>{{this.name}} ({{this.budget}})</li>
+                {{/each}}
+            </ul>
+            {{/if}}
+
+            <p><strong>Important:</strong> A quorum of 6 members is required for valid decisions.</p>
+
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="{{meetingLink}}" style="display: inline-block; padding: 15px 30px; background-color: #17a2b8; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                    View Meeting Details
+                </a>
+            </div>
+
+            <p>Best regards,<br>CDF Smart Hub Team</p>
+        </div>
+
+        <div style="text-align: center; color: #666; font-size: 12px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <p>Constituency Development Fund - Republic of Zambia</p>
+            <p>&copy; 2024 CDF Smart Hub. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

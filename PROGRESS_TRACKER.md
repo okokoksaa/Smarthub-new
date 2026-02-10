@@ -1,8 +1,8 @@
 # CDF Smart Hub - Implementation Progress Tracker
 
-**Last Updated:** January 25, 2026 (Session 2)
-**Project Status:** ~80% Complete
-**Next Action:** Continue with Tier 3 modules (Procurement, Bursary, Empowerment)
+**Last Updated:** February 6, 2026 (Session 4)
+**Project Status:** ~97% Complete
+**Next Action:** Testing, Integration Service, and Production Deployment
 
 ---
 
@@ -54,7 +54,7 @@ When continuing work, read this file first to understand:
 |---------|--------|------|-------|
 | Workflow Service | ✅ COMPLETE | 3003 | State machines for projects & payments |
 | AI Service | ✅ COMPLETE | 3004 | Risk scoring, advisory insights |
-| Notification Service | ⏳ PARTIAL | 3001 | Structure exists, needs email/SMS templates |
+| Notification Service | ✅ COMPLETE | 3001 | Full email/SMS/push support with templates |
 | User Service | ⏳ PARTIAL | 3002 | Basic structure, needs role assignment logic |
 | Finance Service | ⏳ PARTIAL | - | Exists but needs enhancement |
 | Audit Service | ⏳ PARTIAL | - | Exists but needs WORM storage integration |
@@ -79,9 +79,10 @@ When continuing work, read this file first to understand:
 | useWdcSignoff | ✅ COMPLETE | `src/hooks/useWdcSignoff.tsx` | Uses API Gateway |
 | useUserRoles | ✅ COMPLETE | `src/hooks/useUserRoles.tsx` | React Query + API, expanded permissions |
 | useGeographyData | ✅ COMPLETE | `src/hooks/useGeographyData.tsx` | API-based, includes wards |
-| useBursaryApplications | ❌ STUB | `src/hooks/useBursaryApplications.tsx` | Needs full implementation |
-| useEmpowermentGrants | ❌ STUB | `src/hooks/useEmpowermentGrants.tsx` | Needs full implementation |
-| useProcurements | ❌ STUB | `src/hooks/useProcurements.tsx` | Needs full implementation |
+| useBursaryApplications | ✅ COMPLETE | `src/hooks/useBursaryApplications.tsx` | Full CRUD + approval workflow |
+| useEmpowermentGrants | ✅ COMPLETE | `src/hooks/useEmpowermentGrants.tsx` | Full CRUD + approval workflow |
+| useProcurements | ✅ COMPLETE | `src/hooks/useProcurements.tsx` | Full sealed bid workflow |
+| usePublicPortal | ✅ COMPLETE | `src/hooks/usePublicPortal.tsx` | Public transparency endpoints |
 
 ### FRONTEND - Pages (42 Total)
 
@@ -113,17 +114,17 @@ See `frontend/src/pages/` - Most pages exist but need to be connected to API hoo
 15. **Audits & Investigations** - ⏳ Audit logs exist, needs red-flag analytics
 16. **Admin Control Panel** - ✅ Working-days calendar implemented
 
-### Tier 3: NOT STARTED ❌
+### Tier 3: MOSTLY COMPLETE ⏳
 
-17. **Procurement** - ❌ Sealed bids, evaluation matrix needed
-18. **Empowerment Grants & Loans** - ❌ Eligibility, training gates needed
-19. **Bursary Management** - ❌ Term-by-term tracking needed
+17. **Procurement** - ✅ Sealed bids, evaluation matrix, contract award workflow complete
+18. **Empowerment Grants & Loans** - ✅ Eligibility, training gates, disbursement complete
+19. **Bursary Management** - ✅ Term-by-term tracking, enrollment verification complete
 20. **Legal & Compliance** - ❌ Contract repository, opinions needed
-21. **Public Transparency Portal** - ❌ Read-only public views needed
+21. **Public Transparency Portal** - ✅ Read-only public views complete
 22. **Integrations & Data Pipelines** - ❌ Bank CSV, PDF generation needed
 23. **Subscription & Billing (SaaS)** - ❌ Plan management needed
 24. **System Health & Observability** - ❌ Job health, error budgets needed
-25. **Security & Data Protection** - ❌ RLS test harness needed
+25. **Security & Data Protection** - ⏳ RLS enabled, test harness needed
 
 ---
 
@@ -255,34 +256,47 @@ Required:
 
 ## Next Implementation Tasks (Priority Order)
 
-### IMMEDIATE (Do First)
-1. ✅ Update `useWdcSignoff.tsx` to use API (was already done)
-2. ✅ Update `useUserRoles.tsx` to use React Query + API
-3. ✅ Add WDC module to API Gateway (was already done)
-4. ✅ Add quorum/COI enforcement to committees
-5. ✅ Implement working-days calendar for SLA
-6. ✅ Create Geography module (API Gateway)
-7. ✅ Update `useGeographyData.tsx` to use API
-8. ⬜ Create `public_holidays` table in Supabase (run SQL above)
+### COMPLETED ✅ (Session 3 - Jan 28, 2026)
+1. ✅ Procurement module - Full sealed bid workflow with encryption
+2. ✅ Bursary module - Term tracking, eligibility, approval workflow
+3. ✅ Empowerment module - Eligibility, training gates, disbursement
+4. ✅ Public Transparency Portal - Read-only public endpoints
+5. ✅ Notification Service - Email templates for all workflow events
+6. ✅ Frontend hooks for all Tier 3 modules
 
-### HIGH PRIORITY
-9. ⬜ Create Procurement module (API Gateway)
-10. ⬜ Create Bursary module (API Gateway)
-11. ⬜ Create Empowerment module (API Gateway)
-12. ⬜ Implement M&E with GPS verification
-13. ⬜ Create Integration Service for banks
+### COMPLETED ✅ (Session 4 - Feb 6, 2026)
+1. ✅ Ministry Module with CAPR Tracker (10 API endpoints)
+   - Dashboard summary
+   - CAPR cycles tracking (90-day rule)
+   - Ministerial inbox
+   - Gazette publication management
+2. ✅ Legal & Compliance Module (9 API endpoints)
+   - Contract repository
+   - Legal cases management
+   - Compliance tracking
+   - Legal opinions
+3. ✅ Frontend hooks for Ministry and Legal modules
+4. ✅ MinistryDashboard page connected to API
 
-### MEDIUM PRIORITY
-14. ⬜ Complete Notification Service (email templates)
-15. ⬜ Create Public Transparency Portal
-16. ⬜ Implement red-flag analytics for audits
-17. ⬜ Create CAPR tracker for Ministry
+### REMAINING TASKS
 
-### LOWER PRIORITY
-18. ⬜ Subscription & Billing module
-19. ⬜ System Health monitoring
-20. ⬜ RLS test harness
-21. ⬜ AI Chat & Clause Finder
+#### HIGH PRIORITY
+1. ✅ Create `public_holidays` table in Supabase (migration added: 20260131120000_create_public_holidays_table.sql)
+2. ✅ Implement M&E with GPS verification (site_visits table + API)
+3. ✅ Bank CSV import (API Gateway Integrations module + tables)
+4. ✅ Implement red-flag analytics for audits (API Gateway Audits module)
+5. ✅ Create CAPR tracker for Ministry
+
+#### MEDIUM PRIORITY
+6. ✅ Legal & Compliance module (contract repository)
+7. ⏳ AI Chat & Clause Finder (UI exists, needs AI service integration)
+8. ⏳ System Health monitoring (UI exists, needs metrics integration)
+9. ⬜ RLS test harness
+
+#### LOWER PRIORITY
+10. ⬜ Subscription & Billing module (if SaaS model)
+11. ⬜ Full E2E test suite
+12. ⬜ Performance optimization
 
 ---
 
@@ -312,8 +326,10 @@ Required:
 │       │       ├── documents/
 │       │       ├── reports/
 │       │       ├── wdc/
-│       │       ├── geography/     # NEW
-│       │       └── calendar/      # NEW
+│       │       ├── geography/
+│       │       ├── calendar/
+│       │       ├── ministry/      # NEW - CAPR tracker
+│       │       └── legal/         # NEW - Contracts & compliance
 │       ├── workflow-service/  # Port 3003 ✅
 │       ├── ai-service/        # Port 3004 ✅
 │       ├── notification-service/
@@ -430,6 +446,8 @@ AI is ADVISORY ONLY. It cannot:
 | Jan 25, 2026 | 0.9.2 | Workflow + AI services added |
 | Jan 25, 2026 | 0.9.5 | Geography, Calendar modules; enhanced Committees |
 | Jan 26, 2026 | 0.9.6 | NRC validation + uniqueness; people registry; CI verification |
+| Jan 28, 2026 | 0.9.8 | Procurement, Bursary, Empowerment modules complete; Public Portal; Notification templates |
+| Feb 6, 2026 | 0.9.9 | Ministry/CAPR module, Legal/Contracts module, Frontend hooks, API now at 153 routes |
 
 ---
 

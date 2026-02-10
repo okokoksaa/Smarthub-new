@@ -1,0 +1,21 @@
+{
+  "name": "@shared/database",
+  "version": "1.0.0",
+  "description": "Shared database entities and configuration for CDF Smart Hub",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.3.0",
+    "@nestjs/typeorm": "^10.0.1",
+    "typeorm": "^0.3.19",
+    "pg": "^8.11.3",
+    "reflect-metadata": "^0.2.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

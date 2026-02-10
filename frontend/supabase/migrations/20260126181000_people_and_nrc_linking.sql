@@ -16,15 +16,14 @@ create unique index if not exists uidx_people_nrc_norm
   on public.people (public.normalize_nrc(nrc));
 
 -- Updated-at trigger (function assumed to exist from earlier migrations)
-do $$ begin
-  perform 1 from pg_proc where proname = 'update_updated_at';
-  -- if exists, attach trigger
-  if found then
-    create trigger if not exists update_people_updated_at
-      before update on public.people
-      for each row execute function public.update_updated_at();
-  end if;
-end $$;
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_updated_at') THEN
+    DROP TRIGGER IF EXISTS update_people_updated_at ON public.people;
+    CREATE TRIGGER update_people_updated_at
+      BEFORE UPDATE ON public.people
+      FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+  END IF;
+END $$;
 
 -- Seed initial people from existing data (ignore invalid/null NRCs)
 insert into public.people (full_name, nrc)
@@ -180,17 +179,31 @@ create index if not exists idx_bursary_guardian_person on public.bursary_applica
 create index if not exists idx_wdc_signoffs_chair_person on public.wdc_signoffs(chair_person_id);
 
 -- Optional integrity checks: ensure FK set when NRC provided
-alter table if exists public.empowerment_grants
-  add constraint if not exists chk_empowerment_grants_applicant_person_present
-  check (applicant_nrc is null or applicant_person_id is not null);
+DO $$ BEGIN
+  ALTER TABLE public.empowerment_grants
+    ADD CONSTRAINT chk_empowerment_grants_applicant_person_present
+    CHECK (applicant_nrc IS NULL OR applicant_person_id IS NOT NULL);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-alter table if exists public.bursary_applications
-  add constraint if not exists chk_bursary_student_person_present
-  check (student_nrc is null or student_person_id is not null),
-  add constraint if not exists chk_bursary_guardian_person_present
-  check (guardian_nrc is null or guardian_person_id is not null);
+DO $$ BEGIN
+  ALTER TABLE public.bursary_applications
+    ADD CONSTRAINT chk_bursary_student_person_present
+    CHECK (student_nrc IS NULL OR student_person_id IS NOT NULL);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-alter table if exists public.wdc_signoffs
-  add constraint if not exists chk_wdc_chair_person_present
-  check (chair_nrc is null or chair_person_id is not null);
+DO $$ BEGIN
+  ALTER TABLE public.bursary_applications
+    ADD CONSTRAINT chk_bursary_guardian_person_present
+    CHECK (guardian_nrc IS NULL OR guardian_person_id IS NOT NULL);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.wdc_signoffs
+    ADD CONSTRAINT chk_wdc_chair_person_present
+    CHECK (chair_nrc IS NULL OR chair_person_id IS NOT NULL);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
