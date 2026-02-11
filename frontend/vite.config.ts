@@ -5,6 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Use repo name as base for GitHub Pages, empty for custom domain
+  base: process.env.GITHUB_ACTIONS ? "/Smarthub-new/" : "/",
   server: {
     host: "127.0.0.1",
     port: 5173,

@@ -22,6 +22,16 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      // Handle SPA redirect from 404.html (GitHub Pages)
+      (function() {
+        const redirect = sessionStorage.getItem('redirect');
+        if (redirect) {
+          sessionStorage.removeItem('redirect');
+          window.history.replaceState(null, '', redirect);
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
