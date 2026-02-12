@@ -73,6 +73,20 @@ export class AiKnowledgeService {
       };
     }
 
+    const acronym = this.extractAcronymDefinitionTarget(normalizedQuery);
+    if (acronym) {
+      const predefined = this.getKnownAcronymDefinition(acronym);
+      if (predefined) {
+        const definitionChunks = await this.retrieveRelevantChunks(`${acronym} meaning definition`);
+        const definitionSources = this.buildCitations(normalizedQuery, definitionChunks).slice(0, 2);
+        return {
+          answer: predefined,
+          sources: definitionSources,
+          mode: 'extractive',
+        };
+      }
+    }
+
     if (this.isCdfcProceduresQuery(normalizedQuery)) {
       const procedureChunks = await this.retrieveRelevantChunks(
         'proceedings of committee cdfc meeting transaction of business once every three months chairperson notice seven days',
@@ -458,6 +472,26 @@ export class AiKnowledgeService {
       (q.includes('cdfc') && (q.includes('meeting') || q.includes('procedure'))) ||
       q.includes('proceedings of committee')
     );
+  }
+
+  private extractAcronymDefinitionTarget(query: string): string | null {
+    const q = query.trim().toLowerCase();
+    const m = q.match(/^(what\s+is|define|meaning\s+of)\s+([a-z]{2,10})\??$/i);
+    if (!m) return null;
+    return m[2].toUpperCase();
+  }
+
+  private getKnownAcronymDefinition(acronym: string): string | null {
+    const known: Record<string, string> = {
+      WDC: 'WDC means Ward Development Committee — the ward-level structure that consolidates community proposals and submits prioritized project lists through the CDF process.',
+      CDFC:
+        'CDFC means Constituency Development Fund Committee — the constituency-level committee responsible for appraisal, prioritization, and oversight of CDF-supported projects and programs.',
+      TAC: 'TAC means Technical Appraisal Committee — the technical body that reviews project feasibility, costings, and compliance before approvals.',
+      PLGO:
+        'PLGO means Provincial Local Government Officer — the provincial authority involved in oversight and approvals under the CDF legal framework.',
+    };
+
+    return known[acronym] || null;
   }
 
   private isFundingLimitsQuery(query: string): boolean {
