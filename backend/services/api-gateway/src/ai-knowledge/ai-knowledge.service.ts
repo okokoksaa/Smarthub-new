@@ -639,7 +639,7 @@ export class AiKnowledgeService {
 
   private extractAcronymDefinitionTarget(query: string): string | null {
     const q = query.trim().toLowerCase();
-    const m = q.match(/^(what\s+is|who\s+is|define|meaning\s+of)\s+([a-z]{2,10})\??$/i);
+    const m = q.match(/^(what\s+is|who\s+is|define|meaning\s+of)\s+(?:a\s+|an\s+|the\s+)?([a-z]{2,10})\??$/i);
     if (!m) return null;
     return m[2].toUpperCase();
   }
@@ -803,10 +803,10 @@ export class AiKnowledgeService {
     const text = (answer || '')
       .replace(/[ \t]+/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
-      .replace(/^\s*Direct Answer:\s*/i, '')
-      .replace(/\n\s*Key Rules:\s*/gi, '\n')
-      .replace(/\n\s*Practical Steps:\s*/gi, '\n')
-      .replace(/\n\s*Compliance Notes:\s*/gi, '\n')
+      .replace(/\bDirect Answer:\s*/gi, '')
+      .replace(/\bKey Rules:\s*/gi, '')
+      .replace(/\bPractical Steps:\s*/gi, '')
+      .replace(/\bCompliance Notes:\s*/gi, '')
       .trim();
     if (!text) return 'I could not find a reliable clause for that question in current sources.';
 
