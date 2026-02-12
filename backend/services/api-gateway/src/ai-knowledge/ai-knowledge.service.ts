@@ -559,7 +559,7 @@ export class AiKnowledgeService {
 
   private extractAcronymDefinitionTarget(query: string): string | null {
     const q = query.trim().toLowerCase();
-    const m = q.match(/^(what\s+is|define|meaning\s+of)\s+([a-z]{2,10})\??$/i);
+    const m = q.match(/^(what\s+is|who\s+is|define|meaning\s+of)\s+([a-z]{2,10})\??$/i);
     if (!m) return null;
     return m[2].toUpperCase();
   }
