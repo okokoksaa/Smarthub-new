@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Brain,
   Search,
@@ -12,6 +12,7 @@ import {
   HelpCircle,
   ChevronRight,
   Sparkles,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,51 +21,26 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Textarea } from '@/components/ui/textarea';
+import { api } from '@/lib/api';
+import { toast } from 'sonner';
 
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
-  sources?: { title: string; section: string; url: string }[];
+  sources?: { title: string; section: string; url: string | null; excerpt?: string }[];
   timestamp: string;
 }
 
 interface Document {
   id: string;
   title: string;
-  type: 'guideline' | 'circular' | 'template' | 'act';
-  version: string;
-  effectiveDate: string;
-  status: 'active' | 'superseded' | 'draft';
+  source_type: 'guideline' | 'circular' | 'act';
+  version_label?: string | null;
+  effective_date?: string | null;
+  document_url?: string | null;
+  is_active: boolean;
 }
-
-const mockDocuments: Document[] = [
-  { id: '1', title: 'CDF Act 2018', type: 'act', version: '1.0', effectiveDate: '2018-08-01', status: 'active' },
-  { id: '2', title: 'CDF Guidelines 2023', type: 'guideline', version: '3.2', effectiveDate: '2023-01-15', status: 'active' },
-  { id: '3', title: 'Procurement Procedures Manual', type: 'guideline', version: '2.1', effectiveDate: '2022-06-01', status: 'active' },
-  { id: '4', title: 'Circular 001/2024: Budget Ceilings', type: 'circular', version: '1.0', effectiveDate: '2024-01-02', status: 'active' },
-  { id: '5', title: 'Project Proposal Template', type: 'template', version: '1.5', effectiveDate: '2023-03-01', status: 'active' },
-  { id: '6', title: 'Payment Request Form', type: 'template', version: '2.0', effectiveDate: '2023-06-01', status: 'active' },
-];
-
-const mockChatHistory: ChatMessage[] = [
-  {
-    id: '1',
-    role: 'user',
-    content: 'What is the minimum quorum for a CDFC meeting?',
-    timestamp: '10:30 AM',
-  },
-  {
-    id: '2',
-    role: 'assistant',
-    content: 'According to Section 12(4) of the CDF Act 2018, the minimum quorum for a CDFC meeting is **six (6) members**, which must include:\n\n1. The Chairperson or Vice-Chairperson\n2. At least two (2) elected WDC representatives\n3. The Finance Officer\n\nNo decisions can be made without achieving quorum, and any resolutions passed without quorum are void.',
-    sources: [
-      { title: 'CDF Act 2018', section: 'Section 12(4)', url: '#' },
-      { title: 'CDF Guidelines 2023', section: 'Chapter 3.2.1', url: '#' },
-    ],
-    timestamp: '10:30 AM',
-  },
-];
 
 const fieldHelpExamples = [
   { field: 'Project Budget', clause: 'Section 18(2): Maximum K5M for single projects without Minister approval' },
@@ -76,46 +52,106 @@ export default function AIKnowledgeCenter() {
   const [activeTab, setActiveTab] = useState('chat');
   const [searchQuery, setSearchQuery] = useState('');
   const [chatInput, setChatInput] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>(mockChatHistory);
+  const [loading, setLoading] = useState(false);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome-1',
+      role: 'assistant',
+      content:
+        'Ask about CDF Act, Guidelines, or Circulars. I will return a policy-grounded answer with citations when matches are found.',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    },
+  ]);
 
-  const handleSendMessage = () => {
-    if (!chatInput.trim()) return;
-    
-    const newMessage: ChatMessage = {
+  useEffect(() => {
+    const loadSources = async () => {
+      try {
+        const response = await api.get<{ success: boolean; data: Document[] }>('/ai-knowledge/sources');
+        setDocuments(response.data.data || []);
+      } catch (error) {
+        toast.error('Failed to load document sources');
+      }
+    };
+
+    loadSources();
+  }, []);
+
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || loading) return;
+
+    const question = chatInput.trim();
+    const userMessage: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content: chatInput,
+      content: question,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
-    setMessages([...messages, newMessage]);
+
+    setMessages((prev) => [...prev, userMessage]);
     setChatInput('');
-    
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+    setLoading(true);
+
+    try {
+      const response = await api.post<{
+        success: boolean;
+        data: {
+          answer: string;
+          sources: { title: string; section: string; url: string | null; excerpt: string }[];
+        };
+      }>('/ai-knowledge/chat', { query: question });
+
+      const payload = response.data.data;
+      const aiMessage: ChatMessage = {
+        id: `${Date.now()}-assistant`,
         role: 'assistant',
-        content: 'I\'m processing your question. In a production system, this would connect to the AI Knowledge Base to provide accurate, citation-backed answers from the CDF Act, Guidelines, and Circulars.',
-        sources: [{ title: 'CDF Guidelines 2023', section: 'Relevant Section', url: '#' }],
+        content: payload.answer,
+        sources: payload.sources,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages((prev) => [...prev, aiResponse]);
-    }, 1000);
+
+      setMessages((prev) => [...prev, aiMessage]);
+    } catch (error) {
+      toast.error('Failed to get AI knowledge response');
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-error`,
+          role: 'assistant',
+          content:
+            'I could not process your request right now. Please try again. If this persists, check that AI Knowledge sources are loaded.',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const filteredDocuments = useMemo(() => {
+    const search = searchQuery.trim().toLowerCase();
+    if (!search) return documents;
+
+    return documents.filter((doc) => {
+      return (
+        doc.title.toLowerCase().includes(search) ||
+        (doc.version_label || '').toLowerCase().includes(search) ||
+        doc.source_type.toLowerCase().includes(search)
+      );
+    });
+  }, [documents, searchQuery]);
 
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'act': return 'destructive';
       case 'guideline': return 'default';
       case 'circular': return 'warning';
-      case 'template': return 'info';
       default: return 'secondary';
     }
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      {/* Page Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg">
@@ -128,7 +164,7 @@ export default function AIKnowledgeCenter() {
             </p>
           </div>
         </div>
-        <Button>
+        <Button disabled>
           <Upload className="h-4 w-4 mr-2" />
           Upload Document
         </Button>
@@ -159,7 +195,7 @@ export default function AIKnowledgeCenter() {
                   AI Policy Assistant
                 </CardTitle>
                 <CardDescription>
-                  Ask questions about CDF policies, procedures, and get answers with source citations
+                  Ask questions about CDF policies and get answers with source citations
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -172,25 +208,27 @@ export default function AIKnowledgeCenter() {
                       >
                         <div
                           className={`max-w-[80%] rounded-lg p-3 ${
-                            message.role === 'user'
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-muted'
+                            message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                           }`}
                         >
                           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                          {message.sources && (
-                            <div className="mt-3 pt-2 border-t border-border/50 space-y-1">
+                          {message.sources && message.sources.length > 0 && (
+                            <div className="mt-3 pt-2 border-t border-border/50 space-y-2">
                               <p className="text-xs font-medium opacity-70">Sources:</p>
                               {message.sources.map((source, idx) => (
-                                <a
-                                  key={idx}
-                                  href={source.url}
-                                  className="text-xs flex items-center gap-1 hover:underline opacity-80"
-                                >
-                                  <FileText className="h-3 w-3" />
-                                  {source.title} — {source.section}
-                                  <ExternalLink className="h-3 w-3" />
-                                </a>
+                                <div key={idx} className="text-xs opacity-90">
+                                  <a
+                                    href={source.url || '#'}
+                                    target={source.url ? '_blank' : undefined}
+                                    rel={source.url ? 'noreferrer' : undefined}
+                                    className="flex items-center gap-1 hover:underline"
+                                  >
+                                    <FileText className="h-3 w-3" />
+                                    {source.title} — {source.section}
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                  {source.excerpt && <p className="mt-1 opacity-75">“{source.excerpt}”</p>}
+                                </div>
                               ))}
                             </div>
                           )}
@@ -204,12 +242,13 @@ export default function AIKnowledgeCenter() {
                   <Textarea
                     placeholder="Ask a policy question..."
                     value={chatInput}
+                    disabled={loading}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSendMessage())}
                     className="min-h-[60px]"
                   />
-                  <Button onClick={handleSendMessage} className="shrink-0">
-                    <Send className="h-4 w-4" />
+                  <Button onClick={handleSendMessage} className="shrink-0" disabled={loading}>
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                 </div>
               </CardContent>
@@ -242,15 +281,12 @@ export default function AIKnowledgeCenter() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg">Recent Searches</CardTitle>
+                  <CardTitle className="text-lg">Scope</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2">
-                  {['quorum requirements', 'budget ceiling', 'bursary eligibility'].map((term, idx) => (
-                    <div key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {term}
-                    </div>
-                  ))}
+                <CardContent className="space-y-2 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-2"><Clock className="h-3 w-3" /> CDF Act</div>
+                  <div className="flex items-center gap-2"><Clock className="h-3 w-3" /> CDF Guidelines</div>
+                  <div className="flex items-center gap-2"><Clock className="h-3 w-3" /> Circulars</div>
                 </CardContent>
               </Card>
             </div>
@@ -263,7 +299,7 @@ export default function AIKnowledgeCenter() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Document Library</CardTitle>
-                  <CardDescription>Versioned guidelines, circulars, and templates</CardDescription>
+                  <CardDescription>Active CDF Act, Guidelines, and Circulars</CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="relative">
@@ -280,10 +316,15 @@ export default function AIKnowledgeCenter() {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {mockDocuments.map((doc) => (
+                {filteredDocuments.length === 0 && (
+                  <div className="text-sm text-muted-foreground py-4">
+                    No active knowledge documents found.
+                  </div>
+                )}
+                {filteredDocuments.map((doc) => (
                   <div
                     key={doc.id}
-                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+                    className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
@@ -292,14 +333,20 @@ export default function AIKnowledgeCenter() {
                       <div>
                         <h4 className="font-medium">{doc.title}</h4>
                         <p className="text-sm text-muted-foreground">
-                          Version {doc.version} • Effective: {doc.effectiveDate}
+                          {doc.version_label ? `Version ${doc.version_label} • ` : ''}
+                          Effective: {doc.effective_date || 'N/A'}
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={getTypeColor(doc.type)}>{doc.type}</Badge>
-                      <Badge variant={doc.status === 'active' ? 'success' : 'secondary'}>{doc.status}</Badge>
-                      <Button variant="ghost" size="sm">
+                      <Badge variant={getTypeColor(doc.source_type)}>{doc.source_type}</Badge>
+                      <Badge variant={doc.is_active ? 'success' : 'secondary'}>{doc.is_active ? 'active' : 'inactive'}</Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => doc.document_url && window.open(doc.document_url, '_blank', 'noopener,noreferrer')}
+                        disabled={!doc.document_url}
+                      >
                         <ExternalLink className="h-4 w-4" />
                       </Button>
                     </div>

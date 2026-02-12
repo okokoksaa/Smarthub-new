@@ -26,6 +26,7 @@ import { MonitoringModule } from './monitoring/monitoring.module';
 import { MinistryModule } from './ministry/ministry.module';
 import { LegalModule } from './legal/legal.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { AiKnowledgeModule } from './ai-knowledge/ai-knowledge.module';
 
 /**
  * API Gateway Main Module
@@ -86,6 +87,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     MinistryModule,
     LegalModule,
     NotificationsModule,
+    AiKnowledgeModule,
   ],
   controllers: [AppController],
   providers: [
