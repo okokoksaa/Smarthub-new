@@ -169,6 +169,33 @@ export class AiKnowledgeService {
       };
     }
 
+    if (this.isBursaryQualificationQuery(normalizedQuery)) {
+      const qualifyChunks = await this.retrieveRelevantChunks(
+        'bursary eligibility vulnerable learners orphans persons with disability public boarding school skills development criteria',
+      );
+      const qualifySources = this
+        .buildCitations(normalizedQuery, qualifyChunks)
+        .filter((s) => {
+          const t = `${s.section} ${s.excerpt}`.toLowerCase();
+          return (
+            t.includes('vulnerable') ||
+            t.includes('orphan') ||
+            t.includes('disability') ||
+            t.includes('public boarding school') ||
+            t.includes('skills development') ||
+            t.includes('bursary')
+          );
+        })
+        .slice(0, 4);
+
+      return {
+        answer:
+          'Priority bursary beneficiaries are vulnerable learners in the constituency, including orphans and vulnerable persons, with special consideration for persons with disabilities, for access to public boarding school or skills development training under CDF guidelines.',
+        sources: qualifySources,
+        mode: 'extractive',
+      };
+    }
+
     const chunks = await this.retrieveRelevantChunks(normalizedQuery);
 
     if (chunks.length === 0) {
@@ -546,6 +573,15 @@ export class AiKnowledgeService {
       q.includes('bursary application') ||
       q.includes('how do i apply for bursary') ||
       q.includes('skills development bursary')
+    );
+  }
+
+  private isBursaryQualificationQuery(query: string): boolean {
+    const q = query.toLowerCase();
+    return (
+      (q.includes('qualif') && q.includes('bursary')) ||
+      (q.includes('eligible') && q.includes('bursary')) ||
+      q.includes('who qualifies for a bursary')
     );
   }
 
