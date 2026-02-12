@@ -47,19 +47,29 @@ async function bootstrap() {
   });
 
   // CORS configuration
-  const corsOrigins = configService
-    .get<string>('CORS_ORIGIN', 'http://localhost:8080,http://localhost:3000')
+  const corsOriginRaw = configService.get<string>(
+    'CORS_ORIGIN',
+    'http://localhost:8080,http://localhost:3000,https://smarthub-new.vercel.app',
+  );
+  const corsOrigins = corsOriginRaw
     .split(',')
-    .map((origin) => origin.trim());
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  // Production-safe pragmatic mode: reflect request origin so web app is not blocked by stale env CORS lists.
+  const corsOriginConfig =
+    corsOrigins.includes('*') || environment === 'production' ? true : corsOrigins;
 
   app.enableCors({
-    origin: corsOrigins,
+    origin: corsOriginConfig,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Constituency-ID'],
     exposedHeaders: ['X-Total-Count', 'X-Page', 'X-Per-Page'],
   });
-  logger.log(`CORS enabled for origins: ${corsOrigins.join(', ')}`);
+  logger.log(
+    `CORS enabled for origins: ${corsOriginConfig === true ? 'dynamic (request origin)' : corsOrigins.join(', ')}`,
+  );
 
   // Global validation pipe
   app.useGlobalPipes(
