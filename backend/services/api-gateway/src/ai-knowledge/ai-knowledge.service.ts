@@ -196,6 +196,35 @@ export class AiKnowledgeService {
       };
     }
 
+    if (this.isPaymentApprovalWorkflowQuery(normalizedQuery)) {
+      const paymentChunks = await this.retrieveRelevantChunks(
+        'payment process goods services civil works approval workflow requisition local purchase order contract manager inspection certification invoice payment',
+      );
+      const paymentSources = this
+        .buildCitations(normalizedQuery, paymentChunks)
+        .filter((s) => {
+          const t = `${s.section} ${s.excerpt}`.toLowerCase();
+          return (
+            t.includes('payment process') ||
+            t.includes('goods') ||
+            t.includes('services') ||
+            t.includes('civil works') ||
+            t.includes('invoice') ||
+            t.includes('local purchase order') ||
+            t.includes('contract manager') ||
+            t.includes('certificate')
+          );
+        })
+        .slice(0, 4);
+
+      return {
+        answer:
+          'Payment approval workflow should follow contract and procurement controls: verify delivery/performance against contract terms, complete inspection/certification and supporting documents, process approvals through designated Local Authority finance/procurement authority chain, then release payment only against compliant documentation.',
+        sources: paymentSources,
+        mode: 'extractive',
+      };
+    }
+
     const chunks = await this.retrieveRelevantChunks(normalizedQuery);
 
     if (chunks.length === 0) {
@@ -582,6 +611,15 @@ export class AiKnowledgeService {
       (q.includes('qualif') && q.includes('bursary')) ||
       (q.includes('eligible') && q.includes('bursary')) ||
       q.includes('who qualifies for a bursary')
+    );
+  }
+
+  private isPaymentApprovalWorkflowQuery(query: string): boolean {
+    const q = query.toLowerCase();
+    return (
+      (q.includes('payment') && q.includes('approval') && q.includes('workflow')) ||
+      (q.includes('payment') && q.includes('process')) ||
+      q.includes('how is payment approved')
     );
   }
 
