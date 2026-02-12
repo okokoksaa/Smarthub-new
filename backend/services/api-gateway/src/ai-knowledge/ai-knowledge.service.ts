@@ -189,8 +189,7 @@ export class AiKnowledgeService {
         .slice(0, 4);
 
       return {
-        answer:
-          'Priority bursary beneficiaries are vulnerable learners in the constituency, including orphans and vulnerable persons, with special consideration for persons with disabilities, for access to public boarding school or skills development training under CDF guidelines.',
+        answer: this.buildBursaryEligibilityDecision(normalizedQuery),
         sources: qualifySources,
         mode: 'extractive',
       };
@@ -818,6 +817,33 @@ export class AiKnowledgeService {
     if (/\bBOQ\b|\bCBO\b|\bCSO\b|\bDDCC\b|\bDPO\b|\bDPU\b/i.test(t) && t.length < 220)
       return true;
     return false;
+  }
+
+  private buildBursaryEligibilityDecision(query: string): string {
+    const q = query.toLowerCase();
+
+    const saysNotPoorOrVulnerable =
+      /not\s+poor|not\s+vulnerable|not\s+sick|not\s+incapacitated/.test(q);
+    const saysPoorOrVulnerable = /poor|vulnerable|orphan|disabil|incapacitated/.test(q);
+    const ageMatch = q.match(/\b(1[0-9]|[2-9][0-9])\b/);
+    const age = ageMatch ? Number(ageMatch[1]) : null;
+
+    const likelyNotPriority = saysNotPoorOrVulnerable;
+    const likelyPriority = !saysNotPoorOrVulnerable && saysPoorOrVulnerable;
+
+    if (likelyNotPriority) {
+      return 'Likely Not Priority: If you are not poor/vulnerable/incapacitated, CDF bursary selection is usually unlikely because prioritization focuses on vulnerable applicants. You may still apply (especially for skills pathways), but expect lower priority unless you meet other vulnerability criteria in the guidelines.';
+    }
+
+    if (likelyPriority) {
+      return 'Likely Eligible (Priority Category): Applicants from poor/vulnerable households, including orphans and persons with disabilities, are typically prioritized under CDF bursary criteria, subject to document verification and local selection procedures.';
+    }
+
+    if (age !== null && age >= 25) {
+      return 'Needs Review: Age alone does not automatically disqualify bursary support, but approval depends on the specific bursary track (public boarding vs skills development), vulnerability criteria, and required documentation.';
+    }
+
+    return 'Eligibility depends on vulnerability criteria, bursary type, and supporting documents. In general, CDF bursaries prioritize poor/vulnerable applicants, including orphans and persons with disabilities, through local application and verification procedures.';
   }
 
   private sanitizeLlmAnswer(answer: string): string | null {
