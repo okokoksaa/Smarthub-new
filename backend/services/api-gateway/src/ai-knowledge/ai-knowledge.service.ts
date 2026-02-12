@@ -77,7 +77,20 @@ export class AiKnowledgeService {
       const procedureChunks = await this.retrieveRelevantChunks(
         'proceedings of committee cdfc meeting transaction of business once every three months chairperson notice seven days',
       );
-      const procedureSources = this.buildCitations(normalizedQuery, procedureChunks).slice(0, 3);
+      const procedureSources = this
+        .buildCitations(normalizedQuery, procedureChunks)
+        .filter((s) => {
+          const t = `${s.section} ${s.excerpt}`.toLowerCase();
+          return (
+            t.includes('proceeding') ||
+            t.includes('committee') ||
+            t.includes('meeting') ||
+            t.includes('chairperson') ||
+            t.includes('notice') ||
+            t.includes('quorum')
+          );
+        })
+        .slice(0, 3);
 
       return {
         answer:
@@ -294,8 +307,15 @@ export class AiKnowledgeService {
       })
       .sort((a, b) => b.score - a.score);
 
-    const focused = ranked.filter((r) => r.section.toLowerCase() !== 'general');
-    return (focused.length ? focused : ranked).slice(0, 5);
+    const cleaned = ranked.filter(
+      (r) =>
+        r.section.toLowerCase() !== 'general' &&
+        !this.isNoisySentence(r.excerpt) &&
+        !/\bboq\b\s+bill of quantities\s+\bcbo\b/i.test(r.excerpt),
+    );
+
+    const chosen = cleaned.length ? cleaned : ranked.filter((r) => !this.isNoisySentence(r.excerpt));
+    return (chosen.length ? chosen : ranked).slice(0, 5);
   }
 
   private buildExtractiveAnswer(query: string, sources: KnowledgeSourceCitation[]): string {
