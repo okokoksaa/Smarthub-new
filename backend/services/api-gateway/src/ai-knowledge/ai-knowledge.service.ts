@@ -202,26 +202,37 @@ export class AiKnowledgeService {
   private buildCitations(query: string, chunks: KnowledgeChunkRow[]): KnowledgeSourceCitation[] {
     const terms = this.extractTerms(query);
 
-    return chunks
+    const ranked = chunks
       .map((chunk) => {
         const text = chunk.chunk_text || '';
-        const score = terms.length
+        const termScore = terms.length
           ? terms.reduce((acc, term) => (text.toLowerCase().includes(term) ? acc + 1 : acc), 0) /
             terms.length
           : 0;
+
+        const section = chunk.section_label || `Chunk ${chunk.chunk_order + 1}`;
+        const sectionLower = section.toLowerCase();
+        const sectionBoost =
+          terms.length && terms.some((term) => sectionLower.includes(term))
+            ? 0.35
+            : sectionLower === 'general'
+              ? -0.2
+              : 0.1;
 
         return {
           sourceId: chunk.source.id,
           title: chunk.source.title,
           sourceType: chunk.source.source_type,
-          section: chunk.section_label || `Chunk ${chunk.chunk_order + 1}`,
+          section,
           excerpt: this.cleanExcerpt(text, terms),
           url: chunk.source.document_url,
-          score,
+          score: Math.max(0, termScore + sectionBoost),
         };
       })
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
+      .sort((a, b) => b.score - a.score);
+
+    const focused = ranked.filter((r) => r.section.toLowerCase() !== 'general');
+    return (focused.length ? focused : ranked).slice(0, 5);
   }
 
   private buildExtractiveAnswer(query: string, sources: KnowledgeSourceCitation[]): string {
