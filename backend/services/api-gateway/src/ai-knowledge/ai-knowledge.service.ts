@@ -119,8 +119,10 @@ export class AiKnowledgeService {
 
     if (chunks.length === 0) {
       return {
-        answer:
+        answer: this.normalizeFinalAnswer(
+          query,
           'I could not find a matching clause in the current CDF Act, Guidelines, or Circulars. Try a more specific question or include key terms from the policy text.',
+        ),
         sources: [],
         mode: 'extractive',
       };
@@ -132,14 +134,17 @@ export class AiKnowledgeService {
 
     if (cleanLlmAnswer) {
       return {
-        answer: cleanLlmAnswer,
+        answer: this.normalizeFinalAnswer(normalizedQuery, cleanLlmAnswer),
         sources,
         mode: 'llm',
       };
     }
 
     return {
-      answer: this.buildExtractiveAnswer(normalizedQuery, sources),
+      answer: this.normalizeFinalAnswer(
+        normalizedQuery,
+        this.buildExtractiveAnswer(normalizedQuery, sources),
+      ),
       sources,
       mode: 'extractive',
     };
@@ -514,6 +519,27 @@ export class AiKnowledgeService {
     // Cap verbosity and force clean shape
     const clipped = text.length > 900 ? `${text.slice(0, 897)}...` : text;
     return clipped;
+  }
+
+  private normalizeFinalAnswer(query: string, answer: string): string {
+    const text = (answer || '').replace(/\s+/g, ' ').trim();
+    if (!text) return 'I could not find a reliable clause for that question in current sources.';
+
+    if (this.isCdfDefinitionQuery(query)) {
+      return 'CDF means the Constituency Development Fund — public funds allocated to each constituency to finance community-priority local development projects, bursaries, and empowerment programs under the CDF Act and Guidelines.';
+    }
+
+    // Global anti-noise guard for any question
+    const noisy =
+      /\.{4,}/.test(text) ||
+      /\bBOQ\b\s+Bill of Quantities\s+\bCBO\b/i.test(text) ||
+      /\bREPUBLIC OF ZAMBIA\b.*\bMINISTRY OF LOCAL GOVERNMENT\b/i.test(text);
+
+    if (noisy) {
+      return 'I found related policy content, but the extracted text is noisy. Please ask a more specific clause-level question (e.g., quorum, procurement process, or payment approval steps).';
+    }
+
+    return text.length > 900 ? `${text.slice(0, 897)}...` : text;
   }
 
   private cleanExcerpt(text: string, terms: string[]): string {
