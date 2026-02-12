@@ -56,13 +56,20 @@ export class RolesController {
   async getRoles(@Request() req: { user: AuthenticatedUser }) {
     let roles: string[] = req.user?.roles || [];
 
-    // Dev fallback: if roles are empty and DEV_ASSUME_SUPER_ADMIN=true, grant all roles for local testing
+    const allRoles = [
+      'super_admin', 'ministry_official', 'auditor', 'plgo', 'tac_chair', 'tac_member',
+      'cdfc_chair', 'cdfc_member', 'finance_officer', 'wdc_member', 'mp'
+    ];
+
+    // Dev fallback: if roles are empty and DEV_ASSUME_SUPER_ADMIN=true, grant all roles for testing
     const assume = this.config.get<string>('DEV_ASSUME_SUPER_ADMIN');
     if ((!roles || roles.length === 0) && assume === 'true') {
-      roles = [
-        'super_admin', 'ministry_official', 'auditor', 'plgo', 'tac_chair', 'tac_member',
-        'cdfc_chair', 'cdfc_member', 'finance_officer', 'wdc_member', 'mp'
-      ];
+      roles = allRoles;
+    }
+
+    // Emergency bootstrap for production when user_roles are unexpectedly empty for the owner account
+    if ((!roles || roles.length === 0) && req.user?.email === 'jaykapambwe@gmail.com') {
+      roles = allRoles;
     }
 
     return { roles };
