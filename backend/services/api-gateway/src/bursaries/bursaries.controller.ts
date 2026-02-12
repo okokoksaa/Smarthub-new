@@ -8,6 +8,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { BursariesService } from './bursaries.service';
@@ -46,6 +47,7 @@ export class BursariesController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
     @CurrentUser() user?: any,
+    @Req() req?: any,
   ) {
     return this.bursariesService.findAll({
       status,
@@ -55,6 +57,7 @@ export class BursariesController {
       page,
       limit,
       user,
+      scopeContext: req?.scopeContext,
     });
   }
 

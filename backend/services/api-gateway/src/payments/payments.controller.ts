@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
@@ -37,6 +38,7 @@ export class PaymentsController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
     @CurrentUser() user?: any,
+    @Req() req?: any,
   ) {
     return this.paymentsService.findAll({
       status,
@@ -45,6 +47,7 @@ export class PaymentsController {
       page,
       limit,
       user,
+      scopeContext: req?.scopeContext,
     });
   }
 

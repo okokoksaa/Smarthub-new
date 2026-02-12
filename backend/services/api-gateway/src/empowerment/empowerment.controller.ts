@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { EmpowermentService } from './empowerment.service';
@@ -43,6 +44,7 @@ export class EmpowermentController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
     @CurrentUser() user?: any,
+    @Req() req?: any,
   ) {
     return this.empowermentService.findAll({
       status,
@@ -51,6 +53,7 @@ export class EmpowermentController {
       page,
       limit,
       user,
+      scopeContext: req?.scopeContext,
     });
   }
 

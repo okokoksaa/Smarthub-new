@@ -10,6 +10,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ApprovePanelDto } from './dto/approve-panel.dto';
 import { DisbursePaymentDto } from './dto/disburse-payment.dto';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 @Injectable()
 export class PaymentsService {
@@ -33,13 +34,13 @@ export class PaymentsService {
   }
 
   async findAll(filters: any) {
-    const { status, projectId, constituencyId, page, limit, user } = filters;
+    const { status, projectId, constituencyId, page, limit, user, scopeContext } = filters;
 
     let query = this.supabase
       .from('payments')
       .select(`
         *,
-        project:projects(id, title, constituency_id),
+        project:projects(id, title, constituency_id, constituency:constituencies(id, name, district:districts(id, name, province:provinces(id, name)))),
         panel_a_approver:profiles!payments_panel_a_approved_by_fkey(id, email, first_name, last_name),
         panel_b_approver:profiles!payments_panel_b_approved_by_fkey(id, email, first_name, last_name)
       `)
@@ -68,13 +69,15 @@ export class PaymentsService {
       throw new BadRequestException('Failed to fetch payments');
     }
 
+    const scopedData = applyScopeToRows(data, scopeContext);
+
     return {
-      data,
+      data: scopedData,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        pages: Math.ceil((count || 0) / limit),
+        total: scopedData.length,
+        pages: Math.ceil(scopedData.length / limit) || 1,
       },
     };
   }

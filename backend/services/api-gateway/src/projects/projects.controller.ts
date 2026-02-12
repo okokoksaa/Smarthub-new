@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { ProjectsService } from './projects.service';
@@ -56,6 +57,7 @@ export class ProjectsController {
     @Query('sector') sector?: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
+    @Req() req?: any,
   ) {
     return this.projectsService.findAll({
       status,
@@ -64,6 +66,7 @@ export class ProjectsController {
       sector,
       page: Number(page),
       limit: Number(limit),
+      scopeContext: req?.scopeContext,
     });
   }
 

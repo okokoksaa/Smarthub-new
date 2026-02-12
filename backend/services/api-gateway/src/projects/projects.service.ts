@@ -22,6 +22,7 @@ import {
   ApprovalDecision,
 } from './dto/workflow.dto';
 import { CreateMonitoringEvaluationDto } from './dto/monitoring-evaluation.dto';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 // Project status state machine
 const PROJECT_STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -69,13 +70,13 @@ export class ProjectsService {
   // ==================== CRUD OPERATIONS ====================
 
   async findAll(filters: any) {
-    const { status, constituencyId, wardId, sector, page = 1, limit = 20 } = filters;
+    const { status, constituencyId, wardId, sector, page = 1, limit = 20, scopeContext } = filters;
 
     let query = this.supabase
       .from('projects')
       .select(`
         *,
-        constituency:constituencies(id, name, code),
+        constituency:constituencies(id, name, code, district:districts(id, name, province:provinces(id, name))),
         ward:wards(id, name, code),
         contractor:contractors(id, company_name),
         wdc_signoff:wdc_signoffs(*)
@@ -94,13 +95,15 @@ export class ProjectsService {
       throw new BadRequestException('Failed to fetch projects');
     }
 
+    const scopedData = applyScopeToRows(data, scopeContext);
+
     return {
-      data,
+      data: scopedData,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        pages: Math.ceil((count || 0) / limit),
+        total: scopedData.length,
+        pages: Math.ceil(scopedData.length / limit) || 1,
       },
     };
   }

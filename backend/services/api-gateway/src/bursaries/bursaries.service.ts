@@ -10,6 +10,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CreateApplicationDto } from './dto/create-application.dto';
 import { ApproveApplicationDto, ApprovalDecision } from './dto/approve-application.dto';
 import { EligibilityService } from './eligibility.service';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 @Injectable()
 export class BursariesService {
@@ -36,13 +37,13 @@ export class BursariesService {
   }
 
   async findAll(filters: any) {
-    const { status, constituencyId, academicYear, institutionType, page, limit, user } = filters;
+    const { status, constituencyId, academicYear, institutionType, page, limit, user, scopeContext } = filters;
 
     let query = this.supabase
       .from('bursary_applications')
       .select(`
         *,
-        constituency:constituencies(id, name, code),
+        constituency:constituencies(id, name, code, district:districts(id, name, province:provinces(id, name))),
         ward:wards(id, name)
       `, { count: 'exact' })
       .order('created_at', { ascending: false });
@@ -70,13 +71,15 @@ export class BursariesService {
       throw new BadRequestException('Failed to fetch bursary applications');
     }
 
+    const scopedData = applyScopeToRows(data, scopeContext);
+
     return {
-      data,
+      data: scopedData,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        pages: Math.ceil((count || 0) / limit),
+        total: scopedData.length,
+        pages: Math.ceil(scopedData.length / limit) || 1,
       },
     };
   }

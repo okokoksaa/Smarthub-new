@@ -5,6 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule } from './app.module';
+import { resolveScopeContext } from './common/scope/scope.utils';
 
 /**
  * Bootstrap the API Gateway application
@@ -35,6 +36,14 @@ async function bootstrap() {
 
   // Compression middleware
   app.use(compression());
+
+  // Scope resolution middleware (query: scope, header: X-Constituency-ID)
+  app.use((req: any, _res, next) => {
+    const scopeParam = typeof req.query?.scope === 'string' ? req.query.scope : undefined;
+    const constituencyHeader = req.headers['x-constituency-id'] as string | undefined;
+    req.scopeContext = resolveScopeContext(scopeParam, constituencyHeader);
+    next();
+  });
 
   // Lightweight request logging scaffold for observability
   app.use((req, res, next) => {

@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { CommitteesService } from './committees.service';
@@ -45,6 +46,7 @@ export class CommitteesController {
     @Query('province_id') provinceId?: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
+    @Req() req?: any,
   ) {
     return this.committeesService.findAllCommittees({
       type,
@@ -52,6 +54,7 @@ export class CommitteesController {
       provinceId,
       page,
       limit,
+      scopeContext: req?.scopeContext,
     });
   }
 
@@ -113,6 +116,7 @@ export class CommitteesController {
     @Query('to_date') toDate?: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
+    @Req() req?: any,
   ) {
     return this.committeesService.findAllMeetings({
       committeeId,
@@ -121,6 +125,7 @@ export class CommitteesController {
       toDate,
       page,
       limit,
+      scopeContext: req?.scopeContext,
     });
   }
 

@@ -11,6 +11,7 @@ import { CreateEmpowermentDto, GrantType } from './dto/create-empowerment.dto';
 import { UpdateEmpowermentDto } from './dto/update-empowerment.dto';
 import { ApproveEmpowermentDto, ApprovalDecision } from './dto/approve-empowerment.dto';
 import { DisburseEmpowermentDto } from './dto/disburse-empowerment.dto';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 @Injectable()
 export class EmpowermentService {
@@ -34,13 +35,13 @@ export class EmpowermentService {
   }
 
   async findAll(filters: any) {
-    const { status, constituencyId, grantType, page = 1, limit = 20 } = filters;
+    const { status, constituencyId, grantType, page = 1, limit = 20, scopeContext } = filters;
 
     let query = this.supabase
       .from('empowerment_grants')
       .select(`
         *,
-        constituency:constituencies(id, name, code),
+        constituency:constituencies(id, name, code, district:districts(id, name, province:provinces(id, name))),
         ward:wards(id, name)
       `, { count: 'exact' })
       .order('created_at', { ascending: false });
@@ -56,13 +57,15 @@ export class EmpowermentService {
       throw new BadRequestException('Failed to fetch empowerment grants');
     }
 
+    const scopedData = applyScopeToRows(data, scopeContext);
+
     return {
-      data,
+      data: scopedData,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        pages: Math.ceil((count || 0) / limit),
+        total: scopedData.length,
+        pages: Math.ceil(scopedData.length / limit) || 1,
       },
     };
   }

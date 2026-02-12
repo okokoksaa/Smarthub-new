@@ -17,6 +17,7 @@ import {
   UploadMinutesDto,
   ApproveMinutesDto,
 } from './dto/committee.dto';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 @Injectable()
 export class CommitteesService {
@@ -39,7 +40,7 @@ export class CommitteesService {
   // ==================== COMMITTEES ====================
 
   async findAllCommittees(filters: any) {
-    const { type, constituencyId, provinceId, page = 1, limit = 20 } = filters;
+    const { type, constituencyId, provinceId, page = 1, limit = 20, scopeContext } = filters;
 
     let query = this.supabase
       .from('committees')
@@ -68,7 +69,8 @@ export class CommitteesService {
       throw new BadRequestException('Failed to fetch committees');
     }
 
-    return { data, pagination: { page, limit, total: count || 0, pages: Math.ceil((count || 0) / limit) } };
+    const scopedData = applyScopeToRows(data, scopeContext);
+    return { data: scopedData, pagination: { page, limit, total: scopedData.length, pages: Math.ceil(scopedData.length / limit) || 1 } };
   }
 
   async findOneCommittee(id: string) {
@@ -179,13 +181,13 @@ export class CommitteesService {
   // ==================== MEETINGS ====================
 
   async findAllMeetings(filters: any) {
-    const { committeeId, status, fromDate, toDate, page = 1, limit = 20 } = filters;
+    const { committeeId, status, fromDate, toDate, page = 1, limit = 20, scopeContext } = filters;
 
     let query = this.supabase
       .from('meetings')
       .select(`
         *,
-        committee:committees(id, name, committee_type),
+        committee:committees(id, name, committee_type, province:provinces(id, name), constituency:constituencies(id, name, district:districts(id, name, province:provinces(id, name)))),
         created_by_user:profiles!meetings_created_by_fkey(id, email, first_name, last_name),
         attendees:meeting_attendees(
           id, attended, attendance_time,
@@ -205,7 +207,8 @@ export class CommitteesService {
       throw new BadRequestException('Failed to fetch meetings');
     }
 
-    return { data, pagination: { page, limit, total: count || 0, pages: Math.ceil((count || 0) / limit) } };
+    const scopedData = applyScopeToRows(data, scopeContext);
+    return { data: scopedData, pagination: { page, limit, total: scopedData.length, pages: Math.ceil(scopedData.length / limit) || 1 } };
   }
 
   async findOneMeeting(id: string) {
