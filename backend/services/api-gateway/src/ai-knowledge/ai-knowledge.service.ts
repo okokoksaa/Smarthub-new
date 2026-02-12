@@ -156,7 +156,7 @@ export class AiKnowledgeService {
     return {
       answer: this.normalizeFinalAnswer(
         normalizedQuery,
-        this.buildExtractiveAnswer(normalizedQuery, sources),
+        this.buildStructuredExtractiveAnswer(normalizedQuery, sources),
       ),
       sources,
       mode: 'extractive',
@@ -325,9 +325,12 @@ export class AiKnowledgeService {
     // High-value direct definition shortcut for common baseline query.
     if (/\bwhat\s+is\s+cdf\b|\bdefine\s+cdf\b/i.test(query)) {
       const definition = prioritized
-        .flatMap((source) => this.extractRelevantSentences(source.excerpt, ['constituency', 'development', 'fund']))
-        .find((sentence) =>
-          /constituency development fund/i.test(sentence) && !this.isNoisySentence(sentence),
+        .flatMap((source) =>
+          this.extractRelevantSentences(source.excerpt, ['constituency', 'development', 'fund']),
+        )
+        .find(
+          (sentence) =>
+            /constituency development fund/i.test(sentence) && !this.isNoisySentence(sentence),
         );
 
       if (definition) {
@@ -355,6 +358,33 @@ export class AiKnowledgeService {
     }
 
     return selectedSentences.join('\n\n');
+  }
+
+  private buildStructuredExtractiveAnswer(query: string, sources: KnowledgeSourceCitation[]): string {
+    const base = this.buildExtractiveAnswer(query, sources);
+    const sentences = base
+      .replace(/\s+/g, ' ')
+      .split(/(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 20 && !this.isNoisySentence(s));
+
+    const direct = sentences[0] || base;
+    const rules = sentences.slice(0, 3);
+
+    const practicalHint = /meeting|procedure|process|approval|procurement|dispute|quorum/i.test(query)
+      ? 'Follow committee/authority procedure, document decisions in minutes, and escalate through designated oversight structures.'
+      : 'Apply the relevant CDF Act/Guidelines clause, keep records, and validate approvals against current policy controls.';
+
+    return [
+      `Direct Answer: ${direct}`,
+      'Key Rules:',
+      ...rules.map((r) => `- ${r}`),
+      'Practical Steps:',
+      `- ${practicalHint}`,
+      '- Confirm the exact clause/section in the latest CDF Act/Guidelines before final implementation.',
+      'Compliance Notes:',
+      '- Use current approved CDF legal framework and preserve audit-ready records.',
+    ].join('\n');
   }
 
   private async tryGenerateWithLlm(
@@ -389,7 +419,7 @@ export class AiKnowledgeService {
             {
               role: 'system',
               content:
-                'You are a CDF policy assistant. Answer using only supplied context from CDF Act, Guidelines, and Circulars. Give a concise, clean answer: 1 short direct answer + up to 3 bullet points. Do not paste raw OCR blocks, acronyms lists, or table-of-contents text. If context is insufficient, say so clearly.',
+                'You are a CDF policy assistant. Use only supplied context from CDF Act, Guidelines, and Circulars. Return plain text in this exact structure: Direct Answer: <1-2 sentences>\nKey Rules:\n- ...\n- ...\nPractical Steps:\n- ...\n- ...\nCompliance Notes:\n- ... . Keep it concise, policy-grounded, and do not paste OCR noise, acronym dumps, or table-of-contents text. If context is insufficient, explicitly say so.',
             },
             {
               role: 'user',
@@ -528,7 +558,10 @@ export class AiKnowledgeService {
   }
 
   private sanitizeLlmAnswer(answer: string): string | null {
-    const text = (answer || '').replace(/\s+/g, ' ').trim();
+    const text = (answer || '')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
     if (!text) return null;
 
     // Reject noisy OCR-like outputs
@@ -542,7 +575,10 @@ export class AiKnowledgeService {
   }
 
   private normalizeFinalAnswer(query: string, answer: string): string {
-    const text = (answer || '').replace(/\s+/g, ' ').trim();
+    const text = (answer || '')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
     if (!text) return 'I could not find a reliable clause for that question in current sources.';
 
     if (this.isCdfDefinitionQuery(query)) {
