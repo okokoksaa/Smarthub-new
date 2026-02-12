@@ -137,9 +137,9 @@ export class AiKnowledgeService {
       return this.retrieveWithFallbackLike(terms);
     }
 
-    const primary = ((data || []) as unknown as KnowledgeChunkRow[]).filter((row) =>
-      this.allowedSourceTypes.includes(row.source?.source_type),
-    );
+    const primary = ((data || []) as unknown as KnowledgeChunkRow[])
+      .filter((row) => this.allowedSourceTypes.includes(row.source?.source_type))
+      .filter((row) => !this.isLowSignalChunk(row.chunk_text));
 
     if (primary.length >= 5) {
       return primary.slice(0, 12);
@@ -194,9 +194,9 @@ export class AiKnowledgeService {
       throw new BadRequestException(`Failed to retrieve knowledge chunks: ${error.message}`);
     }
 
-    return ((data || []) as unknown as KnowledgeChunkRow[]).filter((row) =>
-      this.allowedSourceTypes.includes(row.source?.source_type),
-    );
+    return ((data || []) as unknown as KnowledgeChunkRow[])
+      .filter((row) => this.allowedSourceTypes.includes(row.source?.source_type))
+      .filter((row) => !this.isLowSignalChunk(row.chunk_text));
   }
 
   private buildCitations(query: string, chunks: KnowledgeChunkRow[]): KnowledgeSourceCitation[] {
@@ -349,6 +349,25 @@ export class AiKnowledgeService {
     return sentences
       .filter((sentence) => terms.some((term) => sentence.toLowerCase().includes(term)))
       .slice(0, 2);
+  }
+
+  private isLowSignalChunk(text: string): boolean {
+    const t = (text || '').replace(/\s+/g, ' ').trim();
+    if (!t) return true;
+
+    // Common table-of-contents / index patterns
+    if (/\.{4,}/.test(t)) return true;
+    if (/\bPART\s+[IVXLC]+\b.*\.{3,}/i.test(t)) return true;
+
+    const alpha = (t.match(/[A-Za-z]/g) || []).length;
+    const digits = (t.match(/[0-9]/g) || []).length;
+    const punct = (t.match(/[.,;:()\[\]{}\-_/]/g) || []).length;
+
+    // Very low letter density or very high punctuation/digit density tends to be noisy scans/contents.
+    const letterRatio = alpha / Math.max(t.length, 1);
+    const noiseRatio = (digits + punct) / Math.max(t.length, 1);
+
+    return letterRatio < 0.45 || noiseRatio > 0.35;
   }
 
   private cleanExcerpt(text: string, terms: string[]): string {
