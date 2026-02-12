@@ -9,6 +9,7 @@ import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios'
 import { supabase } from '@/integrations/supabase/client'
 
 const API_BASE_URL = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:3000/api/v1'
+const SCOPE_STORAGE_KEY = 'cdf.selectedScope'
 
 /**
  * Create axios instance with default configuration
@@ -35,6 +36,16 @@ apiClient.interceptors.request.use(
 
       // Add request ID for tracing
       config.headers['X-Request-ID'] = crypto.randomUUID()
+
+      // Add current data scope context (National / Province)
+      const selectedScope = localStorage.getItem(SCOPE_STORAGE_KEY) || 'National (All)'
+      config.headers['X-Constituency-ID'] = selectedScope
+
+      // Also pass as query param for backend endpoints that read request query
+      config.params = {
+        ...(config.params || {}),
+        scope: selectedScope,
+      }
 
       return config
     } catch (error) {

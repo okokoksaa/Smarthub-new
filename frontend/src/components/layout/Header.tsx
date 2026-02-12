@@ -35,6 +35,8 @@ const roleDisplayNames: Record<AppRole, string> = {
   citizen: 'Citizen',
 };
 
+const SCOPE_STORAGE_KEY = 'cdf.selectedScope';
+
 const scopeOptions = [
   'National (All)',
   'Central Province',
@@ -62,7 +64,9 @@ export function Header() {
     markAllAsRead,
     isMarkingAllRead,
   } = useNotifications(10);
-  const [selectedScope, setSelectedScope] = useState('National (All)');
+  const [selectedScope, setSelectedScope] = useState(() =>
+    localStorage.getItem(SCOPE_STORAGE_KEY) || 'National (All)',
+  );
 
   const handleSignOut = async () => {
     await signOut();
@@ -130,7 +134,11 @@ export function Header() {
               {scopeOptions.map((scope) => (
                 <DropdownMenuItem
                   key={scope}
-                  onClick={() => setSelectedScope(scope)}
+                  onClick={() => {
+                    setSelectedScope(scope);
+                    localStorage.setItem(SCOPE_STORAGE_KEY, scope);
+                    window.dispatchEvent(new CustomEvent('cdf:scope-changed', { detail: { scope } }));
+                  }}
                   className={scope === selectedScope ? 'font-semibold' : ''}
                 >
                   {scope}
