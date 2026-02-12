@@ -225,6 +225,33 @@ export class AiKnowledgeService {
       };
     }
 
+    if (this.isWdcRolesQuery(normalizedQuery)) {
+      const wdcChunks = await this.retrieveRelevantChunks(
+        'ward development committee roles responsibilities community needs proposals project list submission implementation monitoring cdf',
+      );
+      const wdcSources = this
+        .buildCitations(normalizedQuery, wdcChunks)
+        .filter((s) => {
+          const t = `${s.section} ${s.excerpt}`.toLowerCase();
+          return (
+            t.includes('ward development committee') ||
+            t.includes('wdc') ||
+            t.includes('project list') ||
+            t.includes('community') ||
+            t.includes('submit') ||
+            t.includes('monitor')
+          );
+        })
+        .slice(0, 4);
+
+      return {
+        answer:
+          'WDC roles include identifying and prioritizing community needs, consolidating and submitting project proposals/lists through the CDF process, supporting community participation during implementation, and monitoring project progress at ward level.',
+        sources: wdcSources,
+        mode: 'extractive',
+      };
+    }
+
     const chunks = await this.retrieveRelevantChunks(normalizedQuery);
 
     const webContext = await this.tryBuildWebContext(normalizedQuery);
@@ -700,6 +727,17 @@ export class AiKnowledgeService {
       (q.includes('payment') && q.includes('approval') && q.includes('workflow')) ||
       (q.includes('payment') && q.includes('process')) ||
       q.includes('how is payment approved')
+    );
+  }
+
+  private isWdcRolesQuery(query: string): boolean {
+    const q = query.toLowerCase();
+    return (
+      (q.includes('wdc') && q.includes('role')) ||
+      q.includes('roles of wdc') ||
+      q.includes('ward development committee roles') ||
+      q.trim() === 'what are there roles' ||
+      q.trim() === 'what are their roles'
     );
   }
 
