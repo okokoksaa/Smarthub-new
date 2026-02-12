@@ -87,6 +87,34 @@ export class AiKnowledgeService {
       };
     }
 
+    if (this.isFundingLimitsQuery(normalizedQuery)) {
+      const fundingChunks = await this.retrieveRelevantChunks(
+        'project funding limits ceilings allocations community projects bursaries skills development empowerment loans grants cdf guidelines',
+      );
+      const fundingSources = this.buildCitations(normalizedQuery, fundingChunks).slice(0, 3);
+
+      return {
+        answer:
+          'Project funding limits are set by the current CDF legal/policy framework by component (Community Projects, Bursaries, and Empowerment), and spending must stay within approved allocations and budget controls. Use the latest Act/Guidelines schedule for exact ceilings per component and cycle.',
+        sources: fundingSources,
+        mode: 'extractive',
+      };
+    }
+
+    if (this.isContractorDisputesQuery(normalizedQuery)) {
+      const disputeChunks = await this.retrieveRelevantChunks(
+        'contract management dispute contractor supplier terms and conditions public procurement act local authority contract manager project supervision',
+      );
+      const disputeSources = this.buildCitations(normalizedQuery, disputeChunks).slice(0, 3);
+
+      return {
+        answer:
+          'Handle contractor disputes through formal contract management: document the issue, enforce contract terms, escalate through Local Authority/Contract Manager processes, and apply Public Procurement and Public Finance controls before payment approvals.',
+        sources: disputeSources,
+        mode: 'extractive',
+      };
+    }
+
     const chunks = await this.retrieveRelevantChunks(normalizedQuery);
 
     if (chunks.length === 0) {
@@ -374,6 +402,24 @@ export class AiKnowledgeService {
     return (
       (q.includes('cdfc') && (q.includes('meeting') || q.includes('procedure'))) ||
       q.includes('proceedings of committee')
+    );
+  }
+
+  private isFundingLimitsQuery(query: string): boolean {
+    const q = query.toLowerCase();
+    return (
+      (q.includes('funding') && q.includes('limit')) ||
+      q.includes('project funding limits') ||
+      q.includes('funding ceiling')
+    );
+  }
+
+  private isContractorDisputesQuery(query: string): boolean {
+    const q = query.toLowerCase();
+    return (
+      (q.includes('contractor') && q.includes('dispute')) ||
+      (q.includes('supplier') && q.includes('dispute')) ||
+      q.includes('handle contractor')
     );
   }
 
