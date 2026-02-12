@@ -1,4 +1,5 @@
 import { Bell, Search, User, ChevronDown, LogOut, Settings, Shield, CheckCheck, Loader2 } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,6 +35,20 @@ const roleDisplayNames: Record<AppRole, string> = {
   citizen: 'Citizen',
 };
 
+const scopeOptions = [
+  'National (All)',
+  'Central Province',
+  'Copperbelt Province',
+  'Eastern Province',
+  'Luapula Province',
+  'Lusaka Province',
+  'Muchinga Province',
+  'Northern Province',
+  'North-Western Province',
+  'Southern Province',
+  'Western Province',
+];
+
 export function Header() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -47,6 +62,7 @@ export function Header() {
     markAllAsRead,
     isMarkingAllRead,
   } = useNotifications(10);
+  const [selectedScope, setSelectedScope] = useState('National (All)');
 
   const handleSignOut = async () => {
     await signOut();
@@ -104,17 +120,22 @@ export function Header() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-auto p-0 font-medium">
-                National Scope
+                {selectedScope}
                 <ChevronDown className="ml-1 h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Switch Scope</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>National (All)</DropdownMenuItem>
-              <DropdownMenuItem>Lusaka Province</DropdownMenuItem>
-              <DropdownMenuItem>Copperbelt Province</DropdownMenuItem>
-              <DropdownMenuItem>Central Province</DropdownMenuItem>
+              {scopeOptions.map((scope) => (
+                <DropdownMenuItem
+                  key={scope}
+                  onClick={() => setSelectedScope(scope)}
+                  className={scope === selectedScope ? 'font-semibold' : ''}
+                >
+                  {scope}
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
