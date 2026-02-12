@@ -58,6 +58,12 @@ export class AiKnowledgeService {
       throw new BadRequestException('Query is required');
     }
 
+    // FAQ-first: try practical Q&A bank before other logic.
+    const faqMatch = await this.tryAnswerFromPlaybook(normalizedQuery);
+    if (faqMatch) {
+      return faqMatch;
+    }
+
     // Deterministic short answer for core definition query to avoid OCR noise.
     if (this.isCdfDefinitionQuery(normalizedQuery)) {
       const definitionChunks = await this.retrieveRelevantChunks(
@@ -671,6 +677,81 @@ export class AiKnowledgeService {
       }
     }
     return url;
+  }
+
+  private async tryAnswerFromPlaybook(query: string): Promise<KnowledgeChatResponse | null> {
+    try {
+      const { data: playbookSources, error: srcError } = await this.supabase
+        .from('knowledge_sources')
+        .select('id, title, source_type, version_label, document_url, effective_date')
+        .eq('is_active', true)
+        .ilike('title', '%Practical Questions%')
+        .limit(10);
+
+      if (srcError || !playbookSources?.length) {
+        return null;
+      }
+
+      const sourceIds = playbookSources.map((s: any) => s.id);
+      const { data: rows, error: chunkError } = await this.supabase
+        .from('knowledge_chunks')
+        .select('id, source_id, section_label, chunk_text, chunk_order')
+        .eq('is_active', true)
+        .in('source_id', sourceIds)
+        .limit(2000);
+
+      if (chunkError || !rows?.length) {
+        return null;
+      }
+
+      const queryTerms = this.extractTerms(query);
+      let best: { score: number; answer: string; row: any } | null = null;
+
+      for (const row of rows as any[]) {
+        const text = String(row.chunk_text || '');
+        const m = text.match(/Q\s*:\s*([\s\S]*?)\s+A\s*:\s*([\s\S]*)/i);
+        if (!m) continue;
+
+        const qText = m[1].replace(/\s+/g, ' ').trim();
+        const aText = m[2].replace(/\s+/g, ' ').trim();
+        if (!qText || !aText) continue;
+
+        const qLower = qText.toLowerCase();
+        const overlap = queryTerms.length
+          ? queryTerms.reduce((acc, t) => (qLower.includes(t) ? acc + 1 : acc), 0) / queryTerms.length
+          : 0;
+        const exactBoost = qLower === query.toLowerCase().trim() ? 0.7 : 0;
+        const score = overlap + exactBoost;
+
+        if (!best || score > best.score) {
+          best = { score, answer: aText, row };
+        }
+      }
+
+      if (!best || best.score < 0.35) {
+        return null;
+      }
+
+      const src = (playbookSources as any[]).find((s) => s.id === best!.row.source_id);
+      const citation: KnowledgeSourceCitation = {
+        sourceId: src?.id || best.row.source_id,
+        title: src?.title || 'CDF Practical Q&A Bank',
+        sourceType: (src?.source_type || 'guideline') as 'act' | 'guideline' | 'circular',
+        section: best.row.section_label || `Chunk ${Number(best.row.chunk_order || 0) + 1}`,
+        excerpt: this.cleanExcerpt(String(best.row.chunk_text || ''), queryTerms),
+        url: src?.document_url || null,
+        score: best.score,
+      };
+
+      return {
+        answer: this.normalizeFinalAnswer(query, best.answer),
+        sources: [citation],
+        mode: 'extractive',
+      };
+    } catch (error) {
+      this.logger.warn(`Playbook lookup failed: ${(error as Error).message}`);
+      return null;
+    }
   }
 
   private isCdfDefinitionQuery(query: string): boolean {
