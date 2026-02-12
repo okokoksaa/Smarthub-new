@@ -73,6 +73,20 @@ export class AiKnowledgeService {
       };
     }
 
+    if (this.isCdfcProceduresQuery(normalizedQuery)) {
+      const procedureChunks = await this.retrieveRelevantChunks(
+        'proceedings of committee cdfc meeting transaction of business once every three months chairperson notice seven days',
+      );
+      const procedureSources = this.buildCitations(normalizedQuery, procedureChunks).slice(0, 3);
+
+      return {
+        answer:
+          'CDFC meeting procedures (as guided by the CDF Guidelines) include: the Committee meets at least once every three months; meetings are convened by the Chairperson with prior notice; and special meetings may be called when required by members under the prescribed procedure.',
+        sources: procedureSources,
+        mode: 'extractive',
+      };
+    }
+
     const chunks = await this.retrieveRelevantChunks(normalizedQuery);
 
     if (chunks.length === 0) {
@@ -352,6 +366,14 @@ export class AiKnowledgeService {
       /^what\s+is\s+cdf\??$/.test(q) ||
       /^what\s+is\s+cfd\??$/.test(q) ||
       /^define\s+cdf\??$/.test(q)
+    );
+  }
+
+  private isCdfcProceduresQuery(query: string): boolean {
+    const q = query.toLowerCase();
+    return (
+      (q.includes('cdfc') && (q.includes('meeting') || q.includes('procedure'))) ||
+      q.includes('proceedings of committee')
     );
   }
 
