@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FolderKanban,
   FileText,
@@ -21,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
 import {
   Table,
   TableBody,
@@ -92,6 +94,15 @@ const mockVariations: Variation[] = [
 export default function ProjectLifecycle() {
   const [activeTab, setActiveTab] = useState('projects');
   const [selectedProject, setSelectedProject] = useState<string | null>('1');
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const notifyNotReady = (feature: string) => {
+    toast({
+      title: `${feature} is not implemented yet`,
+      description: 'This action is intentionally marked as a pending feature.',
+    });
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -132,7 +143,7 @@ export default function ProjectLifecycle() {
             </p>
           </div>
         </div>
-        <Button>
+        <Button onClick={() => navigate('/projects?action=new')}>
           <Plus className="h-4 w-4 mr-2" />
           New Project
         </Button>
@@ -226,7 +237,7 @@ export default function ProjectLifecycle() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search projects..." className="pl-9 w-[250px]" />
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => notifyNotReady('Project filters')}>
                     <Filter className="h-4 w-4 mr-2" />
                     Filter
                   </Button>
@@ -285,7 +296,14 @@ export default function ProjectLifecycle() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedProject(project.id);
+                            setActiveTab('milestones');
+                          }}
+                        >
                           <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>
@@ -333,7 +351,12 @@ export default function ProjectLifecycle() {
                             Evidence: {milestone.evidenceSubmitted}/{milestone.evidenceRequired.length} submitted
                           </p>
                         </div>
-                        <Button variant="outline" size="sm" className="ml-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="ml-4"
+                          onClick={() => navigate(`/projects?projectId=${selectedProject ?? milestone.projectId}&action=upload-evidence`)}
+                        >
                           <Upload className="h-4 w-4 mr-1" />
                           Upload
                         </Button>
@@ -374,7 +397,7 @@ export default function ProjectLifecycle() {
                   <CardTitle>Variations & Extensions</CardTitle>
                   <CardDescription>Scope, time, and cost variations requiring approval</CardDescription>
                 </div>
-                <Button>
+                <Button onClick={() => navigate('/project-workflow?action=request-variation')}>
                   <Plus className="h-4 w-4 mr-2" />
                   Request Variation
                 </Button>
@@ -415,7 +438,7 @@ export default function ProjectLifecycle() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm">View</Button>
+                        <Button variant="ghost" size="sm" onClick={() => navigate(`/project-workflow?variationId=${variation.id}`)}>View</Button>
                       </TableCell>
                     </TableRow>
                   ))}

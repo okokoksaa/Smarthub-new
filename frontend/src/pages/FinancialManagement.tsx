@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Wallet,
   TrendingDown,
@@ -29,6 +30,7 @@ import {
 } from '@/components/ui/table';
 import { useBudgets } from '@/hooks/useBudgets';
 import { useProjects } from '@/hooks/useProjects';
+import { useToast } from '@/hooks/use-toast';
 
 interface BankAccount {
   id: string;
@@ -66,8 +68,17 @@ const mockDisbursements: DisbursementRequest[] = [
 
 export default function FinancialManagement() {
   const [activeTab, setActiveTab] = useState('commitments');
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const { data: budgets, isLoading: budgetsLoading } = useBudgets(2024);
   const { data: projects, isLoading: projectsLoading } = useProjects();
+
+  const notifyNotReady = (feature: string) => {
+    toast({
+      title: `${feature} is not implemented yet`,
+      description: 'Action is intentionally routed to feedback to avoid inactive controls.',
+    });
+  };
 
   const formatCurrency = (amount: number) => `K${amount.toLocaleString()}`;
 
@@ -124,7 +135,7 @@ export default function FinancialManagement() {
             </p>
           </div>
         </div>
-        <Button>
+        <Button onClick={() => navigate('/projects?action=new-commitment')}>
           <Plus className="h-4 w-4 mr-2" />
           New Commitment
         </Button>
@@ -207,7 +218,7 @@ export default function FinancialManagement() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input placeholder="Search commitments..." className="pl-9 w-[250px]" />
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => notifyNotReady('Commitment filters')}>
                     <Filter className="h-4 w-4 mr-2" />
                     Filter
                   </Button>
@@ -365,7 +376,7 @@ export default function FinancialManagement() {
                   <CardTitle>Quarterly Disbursement Requests</CardTitle>
                   <CardDescription>Track and submit quarterly funding requests</CardDescription>
                 </div>
-                <Button>
+                <Button onClick={() => navigate('/financial?tab=disbursements&action=new-request')}>
                   <Plus className="h-4 w-4 mr-2" />
                   New Request
                 </Button>

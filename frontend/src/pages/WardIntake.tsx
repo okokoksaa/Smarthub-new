@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText,
   Plus,
@@ -20,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { useToast } from '@/hooks/use-toast';
 import {
   Table,
   TableBody,
@@ -67,6 +69,15 @@ const mockMeetings: Meeting[] = [
 export default function WardIntake() {
   const [activeTab, setActiveTab] = useState('applications');
   const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const notifyNotReady = (feature: string) => {
+    toast({
+      title: `${feature} is not implemented yet`,
+      description: 'Button intentionally wired to feedback instead of a no-op.',
+    });
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -115,7 +126,7 @@ export default function WardIntake() {
             </p>
           </div>
         </div>
-        <Button>
+        <Button onClick={() => navigate('/ward-intake?tab=applications&action=new')}>
           <Plus className="h-4 w-4 mr-2" />
           New Application
         </Button>
@@ -203,7 +214,7 @@ export default function WardIntake() {
                       className="pl-9 w-[250px]"
                     />
                   </div>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" onClick={() => notifyNotReady('Advanced filters')}>
                     <Filter className="h-4 w-4 mr-2" />
                     Filter
                   </Button>
@@ -243,7 +254,7 @@ export default function WardIntake() {
                       <TableCell>{getStatusBadge(app.status)}</TableCell>
                       <TableCell className="text-muted-foreground">{app.submittedDate}</TableCell>
                       <TableCell>
-                        <Button variant="ghost" size="sm">View</Button>
+                        <Button variant="ghost" size="sm" onClick={() => navigate(`/ward-intake?applicationId=${app.id}`)}>View</Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -277,7 +288,7 @@ export default function WardIntake() {
                   <CardTitle>WDC Meetings</CardTitle>
                   <CardDescription>Schedule meetings and upload minutes</CardDescription>
                 </div>
-                <Button>
+                <Button onClick={() => setActiveTab('meetings')}>
                   <Calendar className="h-4 w-4 mr-2" />
                   Schedule Meeting
                 </Button>
@@ -308,7 +319,7 @@ export default function WardIntake() {
                       ) : (
                         <Badge variant="outline">Awaiting Signature</Badge>
                       )}
-                      <Button variant="outline" size="sm">
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/ward-intake?meetingId=${meeting.id}&action=upload-minutes`)}>
                         <Upload className="h-4 w-4 mr-2" />
                         Upload Minutes
                       </Button>
@@ -330,9 +341,15 @@ export default function WardIntake() {
               <div className="text-center py-12 text-muted-foreground">
                 <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-40" />
                 <p>Community notices and polls feature coming soon</p>
-                <Button variant="outline" className="mt-4">
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  disabled
+                  title="Community notices are intentionally not implemented yet"
+                  onClick={() => notifyNotReady('Community notices')}
+                >
                   <Plus className="h-4 w-4 mr-2" />
-                  Create Notice
+                  Create Notice (Coming Soon)
                 </Button>
               </div>
             </CardContent>

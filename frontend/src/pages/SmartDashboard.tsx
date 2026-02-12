@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Clock,
@@ -18,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface Task {
   id: string;
@@ -65,6 +67,36 @@ const constituencyKPIs = {
 
 export default function SmartDashboard() {
   const [activeTab, setActiveTab] = useState('tasks');
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const notifyNotReady = (feature: string) => {
+    toast({
+      title: `${feature} is not implemented yet`,
+      description: 'This control is intentionally disabled to avoid no-op actions.',
+    });
+  };
+
+  const handleTaskAction = (task: Task) => {
+    const routeMap: Record<Task['type'], string> = {
+      approval: '/payments',
+      signature: '/tac',
+      review: '/projects',
+      upload: '/monitoring',
+      meeting: '/tac',
+    };
+
+    navigate(`${routeMap[task.type]}?taskId=${task.id}`);
+  };
+
+  const handleExceptionAction = (exception: Exception) => {
+    if (exception.fixAction.startsWith('/contractors')) {
+      navigate(`/procurement${exception.fixAction.slice('/contractors'.length)}`);
+      return;
+    }
+
+    navigate(exception.fixAction);
+  };
 
   const getSlaColor = (status: string) => {
     switch (status) {
@@ -105,11 +137,11 @@ export default function SmartDashboard() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={() => notifyNotReady('Advanced dashboard filtering')}>
             <Filter className="h-4 w-4 mr-2" />
             Filter
           </Button>
-          <Button variant="outline" size="sm" className="relative">
+          <Button variant="outline" size="sm" className="relative" onClick={() => notifyNotReady('Notification center')}>
             <Bell className="h-4 w-4" />
             <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-destructive text-[10px] text-destructive-foreground flex items-center justify-center">3</span>
           </Button>
@@ -201,7 +233,7 @@ export default function SmartDashboard() {
                           <Calendar className="h-3 w-3" />
                           {task.dueDate}
                         </p>
-                        <Button variant="ghost" size="sm" className="mt-1">
+                        <Button variant="ghost" size="sm" className="mt-1" onClick={() => handleTaskAction(task)}>
                           Action <ArrowRight className="h-3 w-3 ml-1" />
                         </Button>
                       </div>
@@ -228,7 +260,7 @@ export default function SmartDashboard() {
                           <strong>Ref:</strong> {exception.clauseRef}
                         </p>
                       </div>
-                      <Button variant="outline" size="sm" className="shrink-0">
+                      <Button variant="outline" size="sm" className="shrink-0" onClick={() => handleExceptionAction(exception)}>
                         Fix Now <ArrowRight className="h-3 w-3 ml-1" />
                       </Button>
                     </div>
@@ -292,16 +324,16 @@ export default function SmartDashboard() {
               <CardTitle className="text-lg">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm" className="justify-start">
+              <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate('/projects?action=new')}>
                 New Project
               </Button>
-              <Button variant="outline" size="sm" className="justify-start">
+              <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate('/payments?action=new')}>
                 New Payment
               </Button>
-              <Button variant="outline" size="sm" className="justify-start">
+              <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate('/ward-intake?tab=meetings')}>
                 Schedule Meeting
               </Button>
-              <Button variant="outline" size="sm" className="justify-start">
+              <Button variant="outline" size="sm" className="justify-start" onClick={() => navigate('/monitoring?action=upload')}>
                 Upload Document
               </Button>
             </CardContent>
