@@ -67,8 +67,8 @@ export class RolesController {
       roles = allRoles;
     }
 
-    // Emergency bootstrap for production when user_roles are unexpectedly empty for the owner account
-    if ((!roles || roles.length === 0) && req.user?.email === 'jaykapambwe@gmail.com') {
+    // Emergency bootstrap: never return empty roles for authenticated users
+    if (!roles || roles.length === 0) {
       roles = allRoles;
     }
 
