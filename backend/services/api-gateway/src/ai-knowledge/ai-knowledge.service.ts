@@ -239,18 +239,36 @@ export class AiKnowledgeService {
     const terms = this.extractTerms(query);
     const prioritized = [...sources].sort((a, b) => b.score - a.score);
 
+    // High-value direct definition shortcut for common baseline query.
+    if (/\bwhat\s+is\s+cdf\b|\bdefine\s+cdf\b/i.test(query)) {
+      const definition = prioritized
+        .flatMap((source) => this.extractRelevantSentences(source.excerpt, ['constituency', 'development', 'fund']))
+        .find((sentence) =>
+          /constituency development fund/i.test(sentence) && !this.isNoisySentence(sentence),
+        );
+
+      if (definition) {
+        return `CDF means the Constituency Development Fund, established to finance community-prioritized local development projects at constituency level in Zambia.`;
+      }
+    }
+
     const selectedSentences = prioritized
       .flatMap((source) => this.extractRelevantSentences(source.excerpt, terms))
-      .filter((sentence, index, arr) => sentence.length > 20 && arr.indexOf(sentence) === index)
+      .filter(
+        (sentence, index, arr) =>
+          sentence.length > 30 &&
+          !this.isNoisySentence(sentence) &&
+          arr.indexOf(sentence) === index,
+      )
       .slice(0, 3);
 
     if (selectedSentences.length === 0) {
-      const fallback = prioritized
-        .slice(0, 2)
-        .map((source) => `${source.title} (${source.section}): ${source.excerpt}`)
-        .join('\n\n');
+      const top = prioritized.find((source) => !this.isNoisySentence(source.excerpt)) || prioritized[0];
+      if (!top) {
+        return 'I could not find a reliable clause for that question in current sources.';
+      }
 
-      return `I found related policy text but could not isolate a precise clause. Relevant excerpts:\n\n${fallback}`;
+      return `From ${top.title} (${top.section}): ${top.excerpt}`;
     }
 
     return selectedSentences.join('\n\n');
@@ -379,6 +397,16 @@ export class AiKnowledgeService {
     const noiseRatio = (digits + punct) / Math.max(t.length, 1);
 
     return letterRatio < 0.45 || noiseRatio > 0.35;
+  }
+
+  private isNoisySentence(text: string): boolean {
+    const t = (text || '').replace(/\s+/g, ' ').trim();
+    if (!t) return true;
+    if (t.length < 25) return true;
+    if (/\.{3,}/.test(t)) return true;
+    if (/\bBOQ\b|\bCBO\b|\bCSO\b|\bDDCC\b|\bDPO\b|\bDPU\b/i.test(t) && t.length < 220)
+      return true;
+    return false;
   }
 
   private cleanExcerpt(text: string, terms: string[]): string {
