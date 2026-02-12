@@ -224,6 +224,33 @@ export class AiKnowledgeService {
       };
     }
 
+    if (this.isCdfLoanApplicationQuery(normalizedQuery)) {
+      const loanChunks = await this.retrieveRelevantChunks(
+        'cdf revolving fund loan application notification approved financial institutions review recommend eligible applicants appraisal checklist loan agreement',
+      );
+      const loanSources = this
+        .buildCitations(normalizedQuery, loanChunks)
+        .filter((s) => {
+          const t = `${s.section} ${s.excerpt}`.toLowerCase();
+          return (
+            t.includes('revolving fund') ||
+            t.includes('approved financial institutions') ||
+            t.includes('apply for loans') ||
+            t.includes('qualifying applicants') ||
+            t.includes('loan agreement') ||
+            t.includes('appraisal')
+          );
+        })
+        .slice(0, 4);
+
+      return {
+        answer:
+          'To apply for a CDF loan: wait for the official call for applications, prepare your business/group documents and financial details, submit your application through the approved CDF loan channel/financial institution, then complete appraisal and agreement steps before disbursement.',
+        sources: loanSources,
+        mode: 'extractive',
+      };
+    }
+
     if (this.isWdcRolesQuery(normalizedQuery)) {
       const wdcChunks = await this.retrieveRelevantChunks(
         'ward development committee roles responsibilities community needs proposals project list submission implementation monitoring cdf',
@@ -737,6 +764,16 @@ export class AiKnowledgeService {
       q.includes('ward development committee roles') ||
       q.trim() === 'what are there roles' ||
       q.trim() === 'what are their roles'
+    );
+  }
+
+  private isCdfLoanApplicationQuery(query: string): boolean {
+    const q = query.toLowerCase();
+    return (
+      (q.includes('apply') && q.includes('cdf loan')) ||
+      q.includes('how do i apply for a cdf loan') ||
+      q.includes('how to apply for a cdf loan') ||
+      (q.includes('cdf') && q.includes('loan') && q.includes('application'))
     );
   }
 
