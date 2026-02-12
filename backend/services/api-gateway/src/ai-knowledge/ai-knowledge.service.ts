@@ -142,6 +142,33 @@ export class AiKnowledgeService {
       };
     }
 
+    if (this.isBursaryApplicationQuery(normalizedQuery)) {
+      const bursaryChunks = await this.retrieveRelevantChunks(
+        'bursary application process invitation deadlines required forms ward development committee public boarding school skills development bursaries',
+      );
+      const bursarySources = this
+        .buildCitations(normalizedQuery, bursaryChunks)
+        .filter((s) => {
+          const t = `${s.section} ${s.excerpt}`.toLowerCase();
+          return (
+            t.includes('bursary') ||
+            t.includes('application') ||
+            t.includes('skills development') ||
+            t.includes('public boarding school') ||
+            t.includes('ward development committee') ||
+            t.includes('deadline')
+          );
+        })
+        .slice(0, 4);
+
+      return {
+        answer:
+          'To apply for a CDF bursary: watch for the Local Authority bursary call window, collect and complete the official form, attach required supporting documents, submit through the ward/committee channel indicated in the guidelines, and track CDFC/Local Authority processing and approval outcomes.',
+        sources: bursarySources,
+        mode: 'extractive',
+      };
+    }
+
     const chunks = await this.retrieveRelevantChunks(normalizedQuery);
 
     if (chunks.length === 0) {
@@ -509,6 +536,16 @@ export class AiKnowledgeService {
       (q.includes('contractor') && q.includes('dispute')) ||
       (q.includes('supplier') && q.includes('dispute')) ||
       q.includes('handle contractor')
+    );
+  }
+
+  private isBursaryApplicationQuery(query: string): boolean {
+    const q = query.toLowerCase();
+    return (
+      (q.includes('apply') && q.includes('bursary')) ||
+      q.includes('bursary application') ||
+      q.includes('how do i apply for bursary') ||
+      q.includes('skills development bursary')
     );
   }
 
