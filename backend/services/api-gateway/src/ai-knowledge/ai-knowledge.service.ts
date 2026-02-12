@@ -58,6 +58,21 @@ export class AiKnowledgeService {
       throw new BadRequestException('Query is required');
     }
 
+    // Deterministic short answer for core definition query to avoid OCR noise.
+    if (this.isCdfDefinitionQuery(normalizedQuery)) {
+      const definitionChunks = await this.retrieveRelevantChunks(
+        'constituency development fund established under constitution and act',
+      );
+      const definitionSources = this.buildCitations(normalizedQuery, definitionChunks).slice(0, 2);
+
+      return {
+        answer:
+          'CDF means the Constituency Development Fund — public funds allocated to each constituency to finance community-priority local development projects, bursaries, and empowerment programs under the CDF Act and Guidelines.',
+        sources: definitionSources,
+        mode: 'extractive',
+      };
+    }
+
     const chunks = await this.retrieveRelevantChunks(normalizedQuery);
 
     if (chunks.length === 0) {
@@ -328,6 +343,15 @@ export class AiKnowledgeService {
       this.logger.warn(`LLM generation failed: ${(error as Error).message}`);
       return null;
     }
+  }
+
+  private isCdfDefinitionQuery(query: string): boolean {
+    const q = query.toLowerCase().trim();
+    return (
+      /^what\s+is\s+cdf\??$/.test(q) ||
+      /^what\s+is\s+cfd\??$/.test(q) ||
+      /^define\s+cdf\??$/.test(q)
+    );
   }
 
   private toTsQuery(query: string): string {
