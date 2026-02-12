@@ -489,7 +489,7 @@ export class AiKnowledgeService {
     sources: KnowledgeSourceCitation[],
   ): Promise<string | null> {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
-    const model = this.configService.get<string>('AI_KNOWLEDGE_MODEL', 'gpt-4o-mini');
+    const model = this.configService.get<string>('AI_KNOWLEDGE_MODEL', 'gpt-4o');
 
     if (!apiKey) {
       return null;
