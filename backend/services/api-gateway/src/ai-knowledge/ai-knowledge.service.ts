@@ -227,8 +227,10 @@ export class AiKnowledgeService {
 
     const chunks = await this.retrieveRelevantChunks(normalizedQuery);
 
+    const webContext = await this.tryBuildWebContext(normalizedQuery);
+
     if (chunks.length === 0) {
-      const webStyleAnswer = await this.tryGenerateWithLlm(normalizedQuery, []);
+      const webStyleAnswer = await this.tryGenerateWithLlm(normalizedQuery, [], webContext);
       if (webStyleAnswer) {
         return {
           answer: this.normalizeFinalAnswer(normalizedQuery, webStyleAnswer),
@@ -248,7 +250,7 @@ export class AiKnowledgeService {
     }
 
     const sources = this.buildCitations(normalizedQuery, chunks);
-    const llmAnswer = await this.tryGenerateWithLlm(normalizedQuery, sources);
+    const llmAnswer = await this.tryGenerateWithLlm(normalizedQuery, sources, webContext);
     const cleanLlmAnswer = llmAnswer ? this.sanitizeLlmAnswer(llmAnswer) : null;
 
     if (cleanLlmAnswer) {
@@ -496,6 +498,7 @@ export class AiKnowledgeService {
   private async tryGenerateWithLlm(
     query: string,
     sources: KnowledgeSourceCitation[],
+    webContext?: string | null,
   ): Promise<string | null> {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     const model = this.configService.get<string>('AI_KNOWLEDGE_MODEL', 'gpt-4o');
@@ -525,11 +528,11 @@ export class AiKnowledgeService {
             {
               role: 'system',
               content:
-                'You are a CDF policy assistant. Prioritize supplied CDF context when available. If context is insufficient, provide a best-effort answer using broader knowledge (including general internet-era knowledge), and clearly label that part as general guidance not directly cited from CDF sources. Return plain text in this exact structure: Direct Answer: <1-2 sentences>\nKey Rules:\n- ...\n- ...\nPractical Steps:\n- ...\n- ...\nCompliance Notes:\n- ... . Keep it concise and do not paste OCR noise, acronym dumps, or table-of-contents text.',
+                'You are a CDF policy assistant. Prioritize supplied CDF context when available. If context is insufficient, use provided Web Context as supplementary real-time guidance and clearly mark it as general guidance (not directly from CDF source documents). Return plain text in this exact structure: Direct Answer: <1-2 sentences>\nKey Rules:\n- ...\n- ...\nPractical Steps:\n- ...\n- ...\nCompliance Notes:\n- ... . Keep it concise and do not paste OCR noise, acronym dumps, or table-of-contents text.',
             },
             {
               role: 'user',
-              content: `Question: ${query}\n\nContext:\n${context}`,
+              content: `Question: ${query}\n\nCDF Context:\n${context || 'None'}\n\nWeb Context:\n${webContext || 'None'}`,
             },
           ],
         }),
@@ -547,6 +550,74 @@ export class AiKnowledgeService {
       this.logger.warn(`LLM generation failed: ${(error as Error).message}`);
       return null;
     }
+  }
+
+  private async tryBuildWebContext(query: string): Promise<string | null> {
+    if (this.configService.get<string>('AI_KNOWLEDGE_WEB_ENABLED', 'true') !== 'true') {
+      return null;
+    }
+
+    try {
+      const braveApiKey = this.configService.get<string>('BRAVE_SEARCH_API_KEY');
+      if (braveApiKey) {
+        const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`;
+        const response = await fetch(url, {
+          headers: {
+            Accept: 'application/json',
+            'X-Subscription-Token': braveApiKey,
+          },
+        });
+
+        if (response.ok) {
+          const payload = (await response.json()) as any;
+          const results = (payload?.web?.results || [])
+            .slice(0, 5)
+            .map(
+              (item: any, i: number) =>
+                `[W${i + 1}] ${item?.title || 'Untitled'}\n${item?.description || ''}\n${item?.url || ''}`,
+            )
+            .join('\n\n');
+
+          if (results) return results;
+        }
+      }
+
+      // Fallback: DuckDuckGo HTML search (no API key required)
+      const ddgUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+      const ddg = await fetch(ddgUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
+      if (!ddg.ok) return null;
+
+      const html = await ddg.text();
+      const matches = [...html.matchAll(/<a[^>]*class=\"result__a\"[^>]*href=\"([^\"]+)\"[^>]*>(.*?)<\/a>/g)];
+      if (!matches.length) return null;
+
+      const lines = matches.slice(0, 5).map((m, i) => {
+        const rawUrl = m[1] || '';
+        const title = (m[2] || '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+        const url = this.extractDdgTargetUrl(rawUrl);
+        return `[W${i + 1}] ${title}\n${url}`;
+      });
+
+      return lines.join('\n\n');
+    } catch (error) {
+      this.logger.warn(`Web context fetch failed: ${(error as Error).message}`);
+      return null;
+    }
+  }
+
+  private extractDdgTargetUrl(url: string): string {
+    const idx = url.indexOf('uddg=');
+    if (idx >= 0) {
+      const encoded = url.slice(idx + 5);
+      try {
+        return decodeURIComponent(encoded);
+      } catch {
+        return encoded;
+      }
+    }
+    return url;
   }
 
   private isCdfDefinitionQuery(query: string): boolean {
