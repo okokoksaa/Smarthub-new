@@ -104,6 +104,8 @@ export class AiKnowledgeService {
   }
 
   private async retrieveRelevantChunks(query: string): Promise<KnowledgeChunkRow[]> {
+    const terms = this.extractTerms(query);
+
     const { data, error } = await this.supabase
       .from('knowledge_chunks')
       .select(
@@ -128,20 +130,43 @@ export class AiKnowledgeService {
         type: 'websearch',
         config: 'english',
       })
-      .limit(12);
+      .limit(20);
 
     if (error) {
       this.logger.warn(`Text search failed, falling back to ilike: ${error.message}`);
-      return this.retrieveWithFallbackLike(query);
+      return this.retrieveWithFallbackLike(terms);
     }
 
-    return ((data || []) as unknown as KnowledgeChunkRow[]).filter((row) =>
+    const primary = ((data || []) as unknown as KnowledgeChunkRow[]).filter((row) =>
       this.allowedSourceTypes.includes(row.source?.source_type),
     );
+
+    if (primary.length >= 5) {
+      return primary.slice(0, 12);
+    }
+
+    const fallback = await this.retrieveWithFallbackLike(terms);
+    const merged = [...primary, ...fallback];
+    const seen = new Set<string>();
+    return merged.filter((row) => {
+      if (seen.has(row.id)) return false;
+      seen.add(row.id);
+      return true;
+    }).slice(0, 12);
   }
 
-  private async retrieveWithFallbackLike(query: string): Promise<KnowledgeChunkRow[]> {
-    const trimmed = query.replace(/[%,]/g, ' ').trim();
+  private async retrieveWithFallbackLike(terms: string[]): Promise<KnowledgeChunkRow[]> {
+    if (!terms.length) {
+      return [];
+    }
+
+    const safeTerms = terms.map((term) => term.replace(/[%,]/g, ' ').trim()).filter(Boolean);
+    if (!safeTerms.length) {
+      return [];
+    }
+
+    const orFilter = safeTerms.map((term) => `chunk_text.ilike.%${term}%`).join(',');
+
     const { data, error } = await this.supabase
       .from('knowledge_chunks')
       .select(
@@ -162,8 +187,8 @@ export class AiKnowledgeService {
       `,
       )
       .eq('is_active', true)
-      .ilike('chunk_text', `%${trimmed}%`)
-      .limit(12);
+      .or(orFilter)
+      .limit(30);
 
     if (error) {
       throw new BadRequestException(`Failed to retrieve knowledge chunks: ${error.message}`);
@@ -190,7 +215,7 @@ export class AiKnowledgeService {
           title: chunk.source.title,
           sourceType: chunk.source.source_type,
           section: chunk.section_label || `Chunk ${chunk.chunk_order + 1}`,
-          excerpt: this.cleanExcerpt(text),
+          excerpt: this.cleanExcerpt(text, terms),
           url: chunk.source.document_url,
           score,
         };
@@ -326,11 +351,26 @@ export class AiKnowledgeService {
       .slice(0, 2);
   }
 
-  private cleanExcerpt(text: string): string {
+  private cleanExcerpt(text: string, terms: string[]): string {
     const trimmed = text.replace(/\s+/g, ' ').trim();
-    if (trimmed.length <= 320) {
+    if (trimmed.length <= 420) {
       return trimmed;
     }
-    return `${trimmed.slice(0, 317)}...`;
+
+    const lower = trimmed.toLowerCase();
+    const firstHit = terms
+      .map((term) => lower.indexOf(term))
+      .filter((idx) => idx >= 0)
+      .sort((a, b) => a - b)[0];
+
+    if (firstHit === undefined) {
+      return `${trimmed.slice(0, 417)}...`;
+    }
+
+    const radius = 200;
+    const start = Math.max(0, firstHit - radius);
+    const end = Math.min(trimmed.length, firstHit + radius + 120);
+    const snippet = trimmed.slice(start, end).trim();
+    return `${start > 0 ? '... ' : ''}${snippet}${end < trimmed.length ? ' ...' : ''}`;
   }
 }
