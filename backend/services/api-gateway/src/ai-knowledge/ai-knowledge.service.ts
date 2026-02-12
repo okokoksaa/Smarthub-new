@@ -228,6 +228,15 @@ export class AiKnowledgeService {
     const chunks = await this.retrieveRelevantChunks(normalizedQuery);
 
     if (chunks.length === 0) {
+      const webStyleAnswer = await this.tryGenerateWithLlm(normalizedQuery, []);
+      if (webStyleAnswer) {
+        return {
+          answer: this.normalizeFinalAnswer(normalizedQuery, webStyleAnswer),
+          sources: [],
+          mode: 'llm',
+        };
+      }
+
       return {
         answer: this.normalizeFinalAnswer(
           query,
@@ -516,7 +525,7 @@ export class AiKnowledgeService {
             {
               role: 'system',
               content:
-                'You are a CDF policy assistant. Use only supplied context from CDF Act, Guidelines, and Circulars. Return plain text in this exact structure: Direct Answer: <1-2 sentences>\nKey Rules:\n- ...\n- ...\nPractical Steps:\n- ...\n- ...\nCompliance Notes:\n- ... . Keep it concise, policy-grounded, and do not paste OCR noise, acronym dumps, or table-of-contents text. If context is insufficient, explicitly say so.',
+                'You are a CDF policy assistant. Prioritize supplied CDF context when available. If context is insufficient, provide a best-effort answer using broader knowledge (including general internet-era knowledge), and clearly label that part as general guidance not directly cited from CDF sources. Return plain text in this exact structure: Direct Answer: <1-2 sentences>\nKey Rules:\n- ...\n- ...\nPractical Steps:\n- ...\n- ...\nCompliance Notes:\n- ... . Keep it concise and do not paste OCR noise, acronym dumps, or table-of-contents text.',
             },
             {
               role: 'user',
