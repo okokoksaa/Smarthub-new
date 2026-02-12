@@ -264,7 +264,7 @@ export class AiKnowledgeService {
     return {
       answer: this.normalizeFinalAnswer(
         normalizedQuery,
-        this.buildStructuredExtractiveAnswer(normalizedQuery, sources),
+        this.buildExtractiveAnswer(normalizedQuery, sources),
       ),
       sources,
       mode: 'extractive',
@@ -528,7 +528,7 @@ export class AiKnowledgeService {
             {
               role: 'system',
               content:
-                'You are a CDF policy assistant. Prioritize supplied CDF context when available. If context is insufficient, use provided Web Context as supplementary real-time guidance and clearly mark it as general guidance (not directly from CDF source documents). Return plain text in this exact structure: Direct Answer: <1-2 sentences>\nKey Rules:\n- ...\n- ...\nPractical Steps:\n- ...\n- ...\nCompliance Notes:\n- ... . Keep it concise and do not paste OCR noise, acronym dumps, or table-of-contents text.',
+                'You are a CDF policy assistant. Prioritize supplied CDF context when available. If context is insufficient, use provided Web Context as supplementary real-time guidance and clearly mark it as general guidance (not directly from CDF source documents). Return a clean natural response (short paragraph + optional bullet points). Do NOT use section labels like "Direct Answer", "Key Rules", "Practical Steps", or "Compliance Notes". Keep it concise and do not paste OCR noise, acronym dumps, or table-of-contents text.',
             },
             {
               role: 'user',
@@ -803,6 +803,10 @@ export class AiKnowledgeService {
     const text = (answer || '')
       .replace(/[ \t]+/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
+      .replace(/^\s*Direct Answer:\s*/i, '')
+      .replace(/\n\s*Key Rules:\s*/gi, '\n')
+      .replace(/\n\s*Practical Steps:\s*/gi, '\n')
+      .replace(/\n\s*Compliance Notes:\s*/gi, '\n')
       .trim();
     if (!text) return 'I could not find a reliable clause for that question in current sources.';
 
