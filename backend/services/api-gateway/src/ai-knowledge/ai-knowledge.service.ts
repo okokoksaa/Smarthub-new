@@ -86,10 +86,11 @@ export class AiKnowledgeService {
 
     const sources = this.buildCitations(normalizedQuery, chunks);
     const llmAnswer = await this.tryGenerateWithLlm(normalizedQuery, sources);
+    const cleanLlmAnswer = llmAnswer ? this.sanitizeLlmAnswer(llmAnswer) : null;
 
-    if (llmAnswer) {
+    if (cleanLlmAnswer) {
       return {
-        answer: llmAnswer,
+        answer: cleanLlmAnswer,
         sources,
         mode: 'llm',
       };
@@ -321,7 +322,7 @@ export class AiKnowledgeService {
             {
               role: 'system',
               content:
-                'You are a CDF policy assistant. Answer using only supplied context from CDF Act, Guidelines, and Circulars. If context is insufficient, say so clearly.',
+                'You are a CDF policy assistant. Answer using only supplied context from CDF Act, Guidelines, and Circulars. Give a concise, clean answer: 1 short direct answer + up to 3 bullet points. Do not paste raw OCR blocks, acronyms lists, or table-of-contents text. If context is insufficient, say so clearly.',
             },
             {
               role: 'user',
@@ -431,6 +432,20 @@ export class AiKnowledgeService {
     if (/\bBOQ\b|\bCBO\b|\bCSO\b|\bDDCC\b|\bDPO\b|\bDPU\b/i.test(t) && t.length < 220)
       return true;
     return false;
+  }
+
+  private sanitizeLlmAnswer(answer: string): string | null {
+    const text = (answer || '').replace(/\s+/g, ' ').trim();
+    if (!text) return null;
+
+    // Reject noisy OCR-like outputs
+    if (/\.{4,}/.test(text)) return null;
+    if (/\bBOQ\b\s+Bill of Quantities\s+\bCBO\b/i.test(text)) return null;
+    if (/\bREPUBLIC OF ZAMBIA\b.*\bMINISTRY OF LOCAL GOVERNMENT\b/i.test(text)) return null;
+
+    // Cap verbosity and force clean shape
+    const clipped = text.length > 900 ? `${text.slice(0, 897)}...` : text;
+    return clipped;
   }
 
   private cleanExcerpt(text: string, terms: string[]): string {
