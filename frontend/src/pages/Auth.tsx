@@ -98,7 +98,7 @@ export default function Auth() {
     }
 
     setIsLoading(true);
-    const { error } = await signUp(signupEmail, signupPassword, {
+    const { error, requiresEmailConfirmation } = await signUp(signupEmail, signupPassword, {
       first_name: firstName,
       last_name: lastName,
     });
@@ -119,6 +119,15 @@ export default function Auth() {
         });
       }
     } else {
+      if (requiresEmailConfirmation) {
+        toast({
+          title: 'Confirm your email',
+          description:
+            'We sent a confirmation link to your email. Check inbox/spam, then click the link to activate your account.',
+        });
+        return;
+      }
+
       toast({
         title: 'Account Created!',
         description: 'Your account has been created successfully.',
