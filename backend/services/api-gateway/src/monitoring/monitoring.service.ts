@@ -10,6 +10,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CreateSiteVisitDto, VisitOutcome } from './dto/create-site-visit.dto';
 import { UpdateProjectGeofenceDto } from './dto/update-project-geofence.dto';
 import { CreateIssueDto, IssueSeverity } from './dto/create-issue.dto';
+import { ScopeContext } from '../common/scope/scope-context';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 interface GeofenceValidation {
   is_valid: boolean;
@@ -55,8 +57,9 @@ export class MonitoringService {
 
   // ========== Site Visits ==========
 
-  async createSiteVisit(dto: CreateSiteVisitDto, user: any) {
+  async createSiteVisit(dto: CreateSiteVisitDto, user: any, scopeContext?: ScopeContext) {
     this.logger.log(`User ${user.id} creating site visit for project ${dto.project_id}`);
+    await this.assertProjectInScope(dto.project_id, scopeContext);
 
     // 1. Get project with geofence data
     const { data: project, error: projectError } = await this.supabase
@@ -161,7 +164,8 @@ export class MonitoringService {
     };
   }
 
-  async getSiteVisits(projectId: string, filters?: any) {
+  async getSiteVisits(projectId: string, filters?: any, scopeContext?: ScopeContext) {
+    await this.assertProjectInScope(projectId, scopeContext);
     const { page = 1, limit = 20 } = filters || {};
 
     let query = this.supabase
@@ -186,7 +190,7 @@ export class MonitoringService {
     };
   }
 
-  async getSiteVisit(id: string) {
+  async getSiteVisit(id: string, scopeContext?: ScopeContext) {
     const { data, error } = await this.supabase
       .from('site_visits')
       .select(`
@@ -201,13 +205,18 @@ export class MonitoringService {
       throw new NotFoundException('Site visit not found');
     }
 
+    if (scopeContext && applyScopeToRows([data], scopeContext).length === 0) {
+      throw new NotFoundException('Site visit not found');
+    }
+
     return data;
   }
 
   // ========== Geofence Management ==========
 
-  async updateProjectGeofence(projectId: string, dto: UpdateProjectGeofenceDto, user: any) {
+  async updateProjectGeofence(projectId: string, dto: UpdateProjectGeofenceDto, user: any, scopeContext?: ScopeContext) {
     this.logger.log(`User ${user.id} updating geofence for project ${projectId}`);
+    await this.assertProjectInScope(projectId, scopeContext);
 
     const { data, error } = await this.supabase
       .from('projects')
@@ -236,7 +245,9 @@ export class MonitoringService {
     return data;
   }
 
-  async getProjectGeofence(projectId: string) {
+  async getProjectGeofence(projectId: string, scopeContext?: ScopeContext) {
+    await this.assertProjectInScope(projectId, scopeContext);
+
     const { data, error } = await this.supabase
       .from('projects')
       .select('id, name, geofence_lat, geofence_lng, geofence_radius, location_description')
@@ -262,8 +273,9 @@ export class MonitoringService {
 
   // ========== Issues/Defects ==========
 
-  async createIssue(dto: CreateIssueDto, user: any) {
+  async createIssue(dto: CreateIssueDto, user: any, scopeContext?: ScopeContext) {
     this.logger.log(`User ${user.id} creating issue for project ${dto.project_id}`);
+    await this.assertProjectInScope(dto.project_id, scopeContext);
 
     // Get project constituency
     const { data: project } = await this.supabase
@@ -310,7 +322,8 @@ export class MonitoringService {
     return issue;
   }
 
-  async getIssues(projectId: string, filters?: any) {
+  async getIssues(projectId: string, filters?: any, scopeContext?: ScopeContext) {
+    await this.assertProjectInScope(projectId, scopeContext);
     const { status, severity, page = 1, limit = 20 } = filters || {};
 
     let query = this.supabase
@@ -338,7 +351,9 @@ export class MonitoringService {
     };
   }
 
-  async resolveIssue(issueId: string, resolution: string, user: any) {
+  async resolveIssue(issueId: string, resolution: string, user: any, scopeContext?: ScopeContext) {
+    await this.assertIssueInScope(issueId, scopeContext);
+
     const { data, error } = await this.supabase
       .from('project_issues')
       .update({
@@ -361,7 +376,9 @@ export class MonitoringService {
 
   // ========== KPI & Analytics ==========
 
-  async getProjectKPIs(projectId: string) {
+  async getProjectKPIs(projectId: string, scopeContext?: ScopeContext) {
+    await this.assertProjectInScope(projectId, scopeContext);
+
     // Get project details
     const { data: project } = await this.supabase
       .from('projects')
@@ -444,7 +461,11 @@ export class MonitoringService {
     };
   }
 
-  async getConstituencyMEStats(constituencyId: string) {
+  async getConstituencyMEStats(constituencyId: string, scopeContext?: ScopeContext) {
+    if (scopeContext && applyScopeToRows([{ constituency_id: constituencyId } as any], scopeContext).length === 0) {
+      throw new NotFoundException('Constituency not found');
+    }
+
     // Get all projects in constituency
     const { data: projects } = await this.supabase
       .from('projects')
@@ -677,6 +698,31 @@ export class MonitoringService {
       acc[val] = (acc[val] || 0) + 1;
       return acc;
     }, {});
+  }
+
+
+  private async assertProjectInScope(projectId: string, scopeContext?: ScopeContext) {
+    if (!scopeContext) return;
+    const { data: project } = await this.supabase
+      .from('projects')
+      .select('id, constituency:constituencies(id, district:districts(province:provinces(name)))')
+      .eq('id', projectId)
+      .maybeSingle();
+    if (!project || applyScopeToRows([project], scopeContext).length === 0) {
+      throw new NotFoundException('Project not found');
+    }
+  }
+
+  private async assertIssueInScope(issueId: string, scopeContext?: ScopeContext) {
+    if (!scopeContext) return;
+    const { data: issue } = await this.supabase
+      .from('project_issues')
+      .select('id, constituency_id')
+      .eq('id', issueId)
+      .maybeSingle();
+    if (!issue || applyScopeToRows([issue], scopeContext).length === 0) {
+      throw new NotFoundException('Issue not found');
+    }
   }
 
   private async logAudit(auditData: any) {

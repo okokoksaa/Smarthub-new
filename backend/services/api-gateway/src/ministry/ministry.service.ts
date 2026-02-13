@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ScopeContext } from '../common/scope/scope-context';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 export interface CAPRCycle {
   id: string;
@@ -65,6 +67,7 @@ export class MinistryService {
     provinceId?: string,
     fiscalYear?: string,
     status?: string,
+    scopeContext?: ScopeContext,
   ): Promise<CAPRCycle[]> {
     // Build query for constituencies with their first meeting of the fiscal year
     let query = this.supabase
@@ -92,8 +95,9 @@ export class MinistryService {
 
     const currentFiscalYear = fiscalYear || this.getCurrentFiscalYear();
     const cycles: CAPRCycle[] = [];
+    const scopedConstituencies = applyScopeToRows(constituencies || [], scopeContext);
 
-    for (const constituency of constituencies || []) {
+    for (const constituency of scopedConstituencies) {
       // Get first CDFC meeting of the fiscal year
       const { data: meetings } = await this.supabase
         .from('meetings')
@@ -204,6 +208,7 @@ export class MinistryService {
     status?: string,
     priority?: string,
     type?: string,
+    scopeContext?: ScopeContext,
   ): Promise<MinisterialItem[]> {
     // Query projects awaiting ministry approval
     let projectQuery = this.supabase
@@ -232,7 +237,9 @@ export class MinistryService {
       throw new BadRequestException(`Failed to fetch ministerial items: ${projectError.message}`);
     }
 
-    const items: MinisterialItem[] = (projects || []).map(project => {
+    const scopedProjects = applyScopeToRows(projects || [], scopeContext);
+
+    const items: MinisterialItem[] = scopedProjects.map(project => {
       const dueDate = new Date(project.created_at);
       dueDate.setDate(dueDate.getDate() + 30); // 30 working days for ministry
 
@@ -271,6 +278,7 @@ export class MinistryService {
   async getGazettePublications(
     provinceId?: string,
     fiscalYear?: string,
+    scopeContext?: ScopeContext,
   ): Promise<GazettePublication[]> {
     const currentFiscalYear = fiscalYear || this.getCurrentFiscalYear();
 
@@ -287,8 +295,9 @@ export class MinistryService {
     }
 
     const publications: GazettePublication[] = [];
+    const scopedProvinces = applyScopeToRows(provinces || [], scopeContext);
 
-    for (const province of provinces || []) {
+    for (const province of scopedProvinces) {
       // Count approved projects for this province in the fiscal year
       const { count } = await this.supabase
         .from('projects')
@@ -325,7 +334,7 @@ export class MinistryService {
   /**
    * Get ministry dashboard summary
    */
-  async getDashboardSummary(): Promise<{
+  async getDashboardSummary(scopeContext?: ScopeContext): Promise<{
     pending_approvals: number;
     urgent_items: number;
     capr_overdue: number;
@@ -350,11 +359,11 @@ export class MinistryService {
       .eq('priority', 'urgent');
 
     // Get CAPR cycles and count overdue
-    const caprCycles = await this.getCAPRCycles(undefined, currentFiscalYear);
+    const caprCycles = await this.getCAPRCycles(undefined, currentFiscalYear, undefined, scopeContext);
     const overdueCount = caprCycles.filter(c => c.status === 'overdue').length;
 
     // Count provinces with published gazettes
-    const gazettes = await this.getGazettePublications(undefined, currentFiscalYear);
+    const gazettes = await this.getGazettePublications(undefined, currentFiscalYear, scopeContext);
     const publishedCount = gazettes.filter(g => g.status === 'published').length;
     const totalProvinces = gazettes.length;
 
@@ -385,7 +394,17 @@ export class MinistryService {
     itemId: string,
     userId: string,
     comments?: string,
+    scopeContext?: ScopeContext,
   ): Promise<{ success: boolean; message: string }> {
+    const { data: project } = await this.supabase
+      .from('projects')
+      .select('id, constituency:constituencies(id, district:districts(province:provinces(name)))')
+      .eq('id', itemId)
+      .maybeSingle();
+    if (scopeContext && applyScopeToRows(project ? [project] : [], scopeContext).length === 0) {
+      throw new BadRequestException('Item is outside scope');
+    }
+
     // Update project status to approved
     const { error } = await this.supabase
       .from('projects')
@@ -424,7 +443,17 @@ export class MinistryService {
     itemId: string,
     userId: string,
     reason: string,
+    scopeContext?: ScopeContext,
   ): Promise<{ success: boolean; message: string }> {
+    const { data: project } = await this.supabase
+      .from('projects')
+      .select('id, constituency:constituencies(id, district:districts(province:provinces(name)))')
+      .eq('id', itemId)
+      .maybeSingle();
+    if (scopeContext && applyScopeToRows(project ? [project] : [], scopeContext).length === 0) {
+      throw new BadRequestException('Item is outside scope');
+    }
+
     const { error } = await this.supabase
       .from('projects')
       .update({
@@ -463,15 +492,20 @@ export class MinistryService {
     provinceId: string,
     userId: string,
     fileUrl: string,
+    scopeContext?: ScopeContext,
   ): Promise<{ success: boolean; gazette_id: string }> {
     const currentFiscalYear = this.getCurrentFiscalYear();
 
     // Get province name
     const { data: province } = await this.supabase
       .from('provinces')
-      .select('name')
+      .select('id, name')
       .eq('id', provinceId)
       .single();
+
+    if (scopeContext && applyScopeToRows(province ? [province] : [], scopeContext).length === 0) {
+      throw new BadRequestException('Province is outside scope');
+    }
 
     // Create gazette document
     const { data: doc, error } = await this.supabase

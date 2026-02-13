@@ -5,6 +5,7 @@ import {
   Param,
   Body,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PublicService } from './public.service';
@@ -41,6 +42,7 @@ export class PublicController {
     @Query('status') status?: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
+    @Req() req?: any,
   ) {
     return this.publicService.getProjects({
       constituencyId,
@@ -48,6 +50,7 @@ export class PublicController {
       status,
       page,
       limit,
+      scopeContext: req?.scopeContext,
     });
   }
 
@@ -55,8 +58,8 @@ export class PublicController {
   @ApiOperation({ summary: 'Get sanitized public project details' })
   @ApiResponse({ status: 200, description: 'Project retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Project not found' })
-  async getProject(@Param('id') id: string) {
-    return this.publicService.getProject(id);
+  async getProject(@Param('id') id: string, @Req() req?: any) {
+    return this.publicService.getProject(id, req?.scopeContext);
   }
 
   // ========== Constituencies ==========
@@ -66,15 +69,16 @@ export class PublicController {
   @ApiResponse({ status: 200, description: 'Constituencies retrieved successfully' })
   async getConstituencies(
     @Query('province_id') provinceId?: string,
+    @Req() req?: any,
   ) {
-    return this.publicService.getConstituencies(provinceId);
+    return this.publicService.getConstituencies(provinceId, req?.scopeContext);
   }
 
   @Get('constituencies/:id/stats')
   @ApiOperation({ summary: 'Get constituency budget utilization stats' })
   @ApiResponse({ status: 200, description: 'Stats retrieved successfully' })
-  async getConstituencyStats(@Param('id') id: string) {
-    return this.publicService.getConstituencyStats(id);
+  async getConstituencyStats(@Param('id') id: string, @Req() req?: any) {
+    return this.publicService.getConstituencyStats(id, req?.scopeContext);
   }
 
   // ========== National Statistics ==========
@@ -82,15 +86,15 @@ export class PublicController {
   @Get('stats/national')
   @ApiOperation({ summary: 'Get national CDF statistics' })
   @ApiResponse({ status: 200, description: 'National stats retrieved successfully' })
-  async getNationalStats() {
-    return this.publicService.getNationalStats();
+  async getNationalStats(@Req() req?: any) {
+    return this.publicService.getNationalStats(req?.scopeContext);
   }
 
   @Get('stats/summary')
   @ApiOperation({ summary: 'Get summary stats for dashboard' })
   @ApiResponse({ status: 200, description: 'Summary stats retrieved successfully' })
-  async getSummaryStats() {
-    return this.publicService.getSummaryStats();
+  async getSummaryStats(@Req() req?: any) {
+    return this.publicService.getSummaryStats(req?.scopeContext);
   }
 
   // ========== Feedback ==========
@@ -110,8 +114,9 @@ export class PublicController {
   async getPublishedReports(
     @Query('constituency_id') constituencyId?: string,
     @Query('report_type') reportType?: string,
+    @Req() req?: any,
   ) {
-    return this.publicService.getPublishedReports(constituencyId, reportType);
+    return this.publicService.getPublishedReports(constituencyId, reportType, req?.scopeContext);
   }
 
   // ========== Document Verification ==========

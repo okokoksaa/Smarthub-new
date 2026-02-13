@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { MinistryService } from './ministry.service';
@@ -29,8 +30,8 @@ export class MinistryController {
   @Get('dashboard')
   @Roles('ministry_official', 'super_admin')
   @ApiOperation({ summary: 'Get ministry dashboard summary' })
-  async getDashboardSummary() {
-    const summary = await this.ministryService.getDashboardSummary();
+  async getDashboardSummary(@Req() req?: any) {
+    const summary = await this.ministryService.getDashboardSummary(req?.scopeContext);
     return {
       success: true,
       data: summary,
@@ -51,8 +52,9 @@ export class MinistryController {
     @Query('province_id') provinceId?: string,
     @Query('fiscal_year') fiscalYear?: string,
     @Query('status') status?: string,
+    @Req() req?: any,
   ) {
-    const cycles = await this.ministryService.getCAPRCycles(provinceId, fiscalYear, status);
+    const cycles = await this.ministryService.getCAPRCycles(provinceId, fiscalYear, status, req?.scopeContext);
     return {
       success: true,
       data: cycles,
@@ -70,8 +72,9 @@ export class MinistryController {
   async getCAPRCycleByConstituency(
     @Param('constituencyId', ParseUUIDPipe) constituencyId: string,
     @Query('fiscal_year') fiscalYear?: string,
+    @Req() req?: any,
   ) {
-    const cycles = await this.ministryService.getCAPRCycles(undefined, fiscalYear);
+    const cycles = await this.ministryService.getCAPRCycles(undefined, fiscalYear, undefined, req?.scopeContext);
     const cycle = cycles.find(c => c.constituency_id === constituencyId);
 
     if (!cycle) {
@@ -101,8 +104,9 @@ export class MinistryController {
     @Query('status') status?: string,
     @Query('priority') priority?: string,
     @Query('type') type?: string,
+    @Req() req?: any,
   ) {
-    const items = await this.ministryService.getMinisterialInbox(status, priority, type);
+    const items = await this.ministryService.getMinisterialInbox(status, priority, type, req?.scopeContext);
     return {
       success: true,
       data: items,
@@ -121,8 +125,9 @@ export class MinistryController {
     @Param('id', ParseUUIDPipe) itemId: string,
     @Body() body: { comments?: string },
     @CurrentUser() user: { id: string },
+    @Req() req?: any,
   ) {
-    const result = await this.ministryService.approveItem(itemId, user.id, body.comments);
+    const result = await this.ministryService.approveItem(itemId, user.id, body.comments, req?.scopeContext);
     return result;
   }
 
@@ -137,8 +142,9 @@ export class MinistryController {
     @Param('id', ParseUUIDPipe) itemId: string,
     @Body() body: { reason: string },
     @CurrentUser() user: { id: string },
+    @Req() req?: any,
   ) {
-    const result = await this.ministryService.rejectItem(itemId, user.id, body.reason);
+    const result = await this.ministryService.rejectItem(itemId, user.id, body.reason, req?.scopeContext);
     return result;
   }
 
@@ -154,8 +160,9 @@ export class MinistryController {
   async getGazettePublications(
     @Query('province_id') provinceId?: string,
     @Query('fiscal_year') fiscalYear?: string,
+    @Req() req?: any,
   ) {
-    const publications = await this.ministryService.getGazettePublications(provinceId, fiscalYear);
+    const publications = await this.ministryService.getGazettePublications(provinceId, fiscalYear, req?.scopeContext);
     return {
       success: true,
       data: publications,
@@ -174,8 +181,9 @@ export class MinistryController {
     @Param('provinceId', ParseUUIDPipe) provinceId: string,
     @Body() body: { file_url: string },
     @CurrentUser() user: { id: string },
+    @Req() req?: any,
   ) {
-    const result = await this.ministryService.publishGazette(provinceId, user.id, body.file_url);
+    const result = await this.ministryService.publishGazette(provinceId, user.id, body.file_url, req?.scopeContext);
     return result;
   }
 }

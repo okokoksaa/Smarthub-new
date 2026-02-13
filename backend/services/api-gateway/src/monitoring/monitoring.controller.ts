@@ -9,6 +9,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { MonitoringService } from './monitoring.service';
@@ -34,8 +35,8 @@ export class MonitoringController {
   @ApiResponse({ status: 201, description: 'Site visit created successfully' })
   @ApiResponse({ status: 400, description: 'GPS outside geofence or invalid data' })
   @Roles('plgo', 'cdfc_chair', 'tac_chair', 'tac_member', 'finance_officer', 'super_admin')
-  async createSiteVisit(@Body() dto: CreateSiteVisitDto, @CurrentUser() user: any) {
-    return this.monitoringService.createSiteVisit(dto, user);
+  async createSiteVisit(@Body() dto: CreateSiteVisitDto, @CurrentUser() user: any, @Req() req?: any) {
+    return this.monitoringService.createSiteVisit(dto, user, req?.scopeContext);
   }
 
   @Get('projects/:projectId/site-visits')
@@ -47,16 +48,17 @@ export class MonitoringController {
     @Param('projectId') projectId: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Req() req?: any,
   ) {
-    return this.monitoringService.getSiteVisits(projectId, { page, limit });
+    return this.monitoringService.getSiteVisits(projectId, { page, limit }, req?.scopeContext);
   }
 
   @Get('site-visits/:id')
   @ApiOperation({ summary: 'Get site visit details' })
   @ApiResponse({ status: 200, description: 'Site visit retrieved' })
   @ApiResponse({ status: 404, description: 'Site visit not found' })
-  async getSiteVisit(@Param('id') id: string) {
-    return this.monitoringService.getSiteVisit(id);
+  async getSiteVisit(@Param('id') id: string, @Req() req?: any) {
+    return this.monitoringService.getSiteVisit(id, req?.scopeContext);
   }
 
   // ========== Geofence ==========
@@ -69,15 +71,16 @@ export class MonitoringController {
     @Param('projectId') projectId: string,
     @Body() dto: UpdateProjectGeofenceDto,
     @CurrentUser() user: any,
+    @Req() req?: any,
   ) {
-    return this.monitoringService.updateProjectGeofence(projectId, dto, user);
+    return this.monitoringService.updateProjectGeofence(projectId, dto, user, req?.scopeContext);
   }
 
   @Get('projects/:projectId/geofence')
   @ApiOperation({ summary: 'Get project geofence settings' })
   @ApiResponse({ status: 200, description: 'Geofence settings retrieved' })
-  async getGeofence(@Param('projectId') projectId: string) {
-    return this.monitoringService.getProjectGeofence(projectId);
+  async getGeofence(@Param('projectId') projectId: string, @Req() req?: any) {
+    return this.monitoringService.getProjectGeofence(projectId, req?.scopeContext);
   }
 
   // ========== Issues ==========
@@ -86,8 +89,8 @@ export class MonitoringController {
   @ApiOperation({ summary: 'Create a new project issue/defect' })
   @ApiResponse({ status: 201, description: 'Issue created successfully' })
   @Roles('plgo', 'cdfc_chair', 'tac_chair', 'tac_member', 'finance_officer', 'super_admin')
-  async createIssue(@Body() dto: CreateIssueDto, @CurrentUser() user: any) {
-    return this.monitoringService.createIssue(dto, user);
+  async createIssue(@Body() dto: CreateIssueDto, @CurrentUser() user: any, @Req() req?: any) {
+    return this.monitoringService.createIssue(dto, user, req?.scopeContext);
   }
 
   @Get('projects/:projectId/issues')
@@ -103,8 +106,9 @@ export class MonitoringController {
     @Query('severity') severity?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Req() req?: any,
   ) {
-    return this.monitoringService.getIssues(projectId, { status, severity, page, limit });
+    return this.monitoringService.getIssues(projectId, { status, severity, page, limit }, req?.scopeContext);
   }
 
   @Patch('issues/:id/resolve')
@@ -116,8 +120,9 @@ export class MonitoringController {
     @Param('id') id: string,
     @Body('resolution') resolution: string,
     @CurrentUser() user: any,
+    @Req() req?: any,
   ) {
-    return this.monitoringService.resolveIssue(id, resolution, user);
+    return this.monitoringService.resolveIssue(id, resolution, user, req?.scopeContext);
   }
 
   // ========== KPIs & Analytics ==========
@@ -125,14 +130,14 @@ export class MonitoringController {
   @Get('projects/:projectId/kpis')
   @ApiOperation({ summary: 'Get project KPIs (physical, financial, quality, schedule)' })
   @ApiResponse({ status: 200, description: 'KPIs retrieved successfully' })
-  async getProjectKPIs(@Param('projectId') projectId: string) {
-    return this.monitoringService.getProjectKPIs(projectId);
+  async getProjectKPIs(@Param('projectId') projectId: string, @Req() req?: any) {
+    return this.monitoringService.getProjectKPIs(projectId, req?.scopeContext);
   }
 
   @Get('constituencies/:constituencyId/stats')
   @ApiOperation({ summary: 'Get M&E statistics for constituency' })
   @ApiResponse({ status: 200, description: 'Statistics retrieved successfully' })
-  async getConstituencyStats(@Param('constituencyId') constituencyId: string) {
-    return this.monitoringService.getConstituencyMEStats(constituencyId);
+  async getConstituencyStats(@Param('constituencyId') constituencyId: string, @Req() req?: any) {
+    return this.monitoringService.getConstituencyMEStats(constituencyId, req?.scopeContext);
   }
 }

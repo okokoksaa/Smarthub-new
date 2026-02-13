@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { LegalService } from './legal.service';
@@ -30,8 +31,8 @@ export class LegalController {
   @Get('dashboard')
   @Roles('auditor', 'plgo', 'ministry_official', 'super_admin')
   @ApiOperation({ summary: 'Get legal and compliance dashboard summary' })
-  async getDashboardSummary() {
-    const summary = await this.legalService.getDashboardSummary();
+  async getDashboardSummary(@Req() req?: any) {
+    const summary = await this.legalService.getDashboardSummary(req?.scopeContext);
     return {
       success: true,
       data: summary,
@@ -54,8 +55,9 @@ export class LegalController {
     @Query('constituency_id') constituencyId?: string,
     @Query('status') status?: string,
     @Query('contract_type') contractType?: string,
+    @Req() req?: any,
   ) {
-    const contracts = await this.legalService.getContracts(constituencyId, status, contractType);
+    const contracts = await this.legalService.getContracts(constituencyId, status, contractType, req?.scopeContext);
     return {
       success: true,
       data: contracts,
@@ -69,8 +71,8 @@ export class LegalController {
    */
   @Get('contracts/:id')
   @ApiOperation({ summary: 'Get contract by ID' })
-  async getContract(@Param('id', ParseUUIDPipe) id: string) {
-    const contract = await this.legalService.getContract(id);
+  async getContract(@Param('id', ParseUUIDPipe) id: string, @Req() req?: any) {
+    const contract = await this.legalService.getContract(id, req?.scopeContext);
     return {
       success: true,
       data: contract,
@@ -87,8 +89,9 @@ export class LegalController {
   async createContract(
     @Body() body: any,
     @CurrentUser() user: { id: string },
+    @Req() req?: any,
   ) {
-    const contract = await this.legalService.createContract(body, user.id);
+    const contract = await this.legalService.createContract(body, user.id, req?.scopeContext);
     return {
       success: true,
       data: contract,
@@ -106,8 +109,9 @@ export class LegalController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { status: string },
     @CurrentUser() user: { id: string },
+    @Req() req?: any,
   ) {
-    const contract = await this.legalService.updateContractStatus(id, body.status, user.id);
+    const contract = await this.legalService.updateContractStatus(id, body.status, user.id, req?.scopeContext);
     return {
       success: true,
       data: contract,
@@ -130,8 +134,9 @@ export class LegalController {
     @Query('status') status?: string,
     @Query('case_type') caseType?: string,
     @Query('priority') priority?: string,
+    @Req() req?: any,
   ) {
-    const cases = await this.legalService.getLegalCases(status, caseType, priority);
+    const cases = await this.legalService.getLegalCases(status, caseType, priority, req?.scopeContext);
     return {
       success: true,
       data: cases,
@@ -146,8 +151,8 @@ export class LegalController {
   @Get('cases/:id')
   @Roles('auditor', 'plgo', 'ministry_official', 'super_admin')
   @ApiOperation({ summary: 'Get legal case by ID' })
-  async getLegalCase(@Param('id', ParseUUIDPipe) id: string) {
-    const legalCase = await this.legalService.getLegalCase(id);
+  async getLegalCase(@Param('id', ParseUUIDPipe) id: string, @Req() req?: any) {
+    const legalCase = await this.legalService.getLegalCase(id, req?.scopeContext);
     return {
       success: true,
       data: legalCase,
@@ -164,8 +169,9 @@ export class LegalController {
   async createLegalCase(
     @Body() body: any,
     @CurrentUser() user: { id: string },
+    @Req() req?: any,
   ) {
-    const legalCase = await this.legalService.createLegalCase(body, user.id);
+    const legalCase = await this.legalService.createLegalCase(body, user.id, req?.scopeContext);
     return {
       success: true,
       data: legalCase,
@@ -183,8 +189,9 @@ export class LegalController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: any,
     @CurrentUser() user: { id: string },
+    @Req() req?: any,
   ) {
-    const legalCase = await this.legalService.updateLegalCase(id, body, user.id);
+    const legalCase = await this.legalService.updateLegalCase(id, body, user.id, req?.scopeContext);
     return {
       success: true,
       data: legalCase,
@@ -205,8 +212,9 @@ export class LegalController {
   async getComplianceItems(
     @Query('constituency_id') constituencyId?: string,
     @Query('status') status?: string,
+    @Req() req?: any,
   ) {
-    const items = await this.legalService.getComplianceItems(constituencyId, status);
+    const items = await this.legalService.getComplianceItems(constituencyId, status, req?.scopeContext);
     return {
       success: true,
       data: items,
@@ -225,12 +233,14 @@ export class LegalController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() body: { status: string; notes?: string },
     @CurrentUser() user: { id: string },
+    @Req() req?: any,
   ) {
     const item = await this.legalService.updateComplianceStatus(
       id,
       body.status,
       user.id,
       body.notes,
+      req?.scopeContext,
     );
     return {
       success: true,
@@ -251,8 +261,9 @@ export class LegalController {
   async getLegalOpinions(
     @Query('opinion_type') opinionType?: string,
     @Query('search') search?: string,
+    @Req() req?: any,
   ) {
-    const opinions = await this.legalService.getLegalOpinions(opinionType, search);
+    const opinions = await this.legalService.getLegalOpinions(opinionType, search, req?.scopeContext);
     return {
       success: true,
       data: opinions,
@@ -270,8 +281,9 @@ export class LegalController {
   async createLegalOpinion(
     @Body() body: any,
     @CurrentUser() user: { id: string },
+    @Req() req?: any,
   ) {
-    const opinion = await this.legalService.createLegalOpinion(body, user.id);
+    const opinion = await this.legalService.createLegalOpinion(body, user.id, req?.scopeContext);
     return {
       success: true,
       data: opinion,

@@ -28,15 +28,34 @@ Implemented/extended `scopeContext` propagation and row-level filtering in these
 - **Budgets (remaining endpoint pass)**
   - Controller forwards `scopeContext` for constituency budget/utilization endpoints.
   - Service applies scope enforcement for constituency budget fetch + utilization path.
+- **Ministry (final endpoint sweep)**
+  - Controller now propagates `req.scopeContext` on dashboard/CAPR/inbox/gazette + action endpoints.
+  - Service applies scoped filtering for CAPR inputs, inbox project lists, gazette province lists, and scoped guards on approve/reject/publish actions.
+- **Legal (final endpoint sweep)**
+  - Controller now propagates `req.scopeContext` across dashboard/contracts/cases/compliance/opinions endpoints.
+  - Service applies scoped filtering for list/get operations and scoped guards for mutation paths that target scoped entities.
+- **Monitoring (final endpoint sweep)**
+  - Controller now propagates `req.scopeContext` for site visits, geofence, issues, KPI, and constituency stats endpoints.
+  - Service enforces scoped project/issue checks before reads/writes and applies scoped item visibility on single-item fetches.
+- **Public (final endpoint sweep)**
+  - Controller now propagates `req.scopeContext` for project/constituency/stat/report routes.
+  - Service applies scoped filtering to project lists/details, constituency listings/stats, and aggregated summary/national stats calculations.
 
 ### 2) Isolation tests added
-Added service-level tests proving scoped isolation behavior:
+Added targeted isolation/propagation tests for this final sweep:
+
+- `ministry/ministry.scope.spec.ts`
+- `legal/legal.scope.spec.ts`
+- `monitoring/monitoring.scope.spec.ts`
+- `public/public.scope.spec.ts`
+
+(Existing scope tests retained)
 
 - `reports/reports.scope.spec.ts`
 - `documents/documents.scope.spec.ts`
 - `wdc/wdc.scope.spec.ts`
 
-These validate province-scoped filtering / out-of-scope denial behavior.
+These validate scoped request propagation and out-of-scope isolation behavior.
 
 ### 3) Build + test verification
 
@@ -57,10 +76,10 @@ These validate province-scoped filtering / out-of-scope denial behavior.
 | budgets | ✅ (remaining constituency endpoints) | ✅ | Completed in this pass |
 | audits | ✅ (already present for red-flags) | ✅ | Previously in place |
 | geography | ✅ | ✅ | Previously in place |
-| ministry | ⚠️ | ⚠️ | Needs deeper follow-up pass |
-| legal | ⚠️ | ⚠️ | Needs deeper follow-up pass |
-| monitoring | ⚠️ | ⚠️ | Needs deeper follow-up pass |
-| public | ⚠️ | ⚠️ | Needs deeper follow-up pass |
+| ministry | ✅ | ✅ | Completed in this final sweep |
+| legal | ✅ | ✅ | Completed in this final sweep |
+| monitoring | ✅ | ✅ | Completed in this final sweep |
+| public | ✅ | ✅ | Completed in this final sweep |
 
 > ⚠️ = module has partial/legacy paths that still require a deeper endpoint-by-endpoint hardening sweep.
 

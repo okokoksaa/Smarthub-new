@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ScopeContext } from '../common/scope/scope-context';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 export interface Contract {
   id: string;
@@ -86,6 +88,7 @@ export class LegalService {
     constituencyId?: string,
     status?: string,
     contractType?: string,
+    scopeContext?: ScopeContext,
   ): Promise<Contract[]> {
     let query = this.supabase
       .from('contracts')
@@ -112,18 +115,20 @@ export class LegalService {
       throw new BadRequestException(`Failed to fetch contracts: ${error.message}`);
     }
 
-    return (data || []).map(c => ({
+    const contracts = (data || []).map(c => ({
       ...c,
       contractor_name: c.contractors?.name || 'Unknown',
       project_name: c.projects?.title || 'Unknown',
       constituency_id: c.projects?.constituency_id,
     }));
+
+    return applyScopeToRows(contracts, scopeContext);
   }
 
   /**
    * Get contract by ID
    */
-  async getContract(id: string): Promise<Contract> {
+  async getContract(id: string, scopeContext?: ScopeContext): Promise<Contract> {
     const { data, error } = await this.supabase
       .from('contracts')
       .select(`
@@ -138,12 +143,18 @@ export class LegalService {
       throw new NotFoundException('Contract not found');
     }
 
-    return {
+    const contract = {
       ...data,
       contractor_name: data.contractors?.name || 'Unknown',
       project_name: data.projects?.title || 'Unknown',
       constituency_id: data.projects?.constituency_id,
     };
+
+    if (scopeContext && applyScopeToRows([contract as any], scopeContext).length === 0) {
+      throw new NotFoundException('Contract not found');
+    }
+
+    return contract;
   }
 
   /**
@@ -152,7 +163,19 @@ export class LegalService {
   async createContract(
     dto: Partial<Contract>,
     userId: string,
+    scopeContext?: ScopeContext,
   ): Promise<Contract> {
+    if (dto.project_id && scopeContext) {
+      const { data: project } = await this.supabase
+        .from('projects')
+        .select('id, constituency:constituencies(id, district:districts(province:provinces(name)))')
+        .eq('id', dto.project_id)
+        .maybeSingle();
+      if (applyScopeToRows(project ? [project] : [], scopeContext).length === 0) {
+        throw new BadRequestException('Project is outside scope');
+      }
+    }
+
     const contractNumber = await this.generateContractNumber();
 
     const { data, error } = await this.supabase
@@ -188,7 +211,10 @@ export class LegalService {
     id: string,
     status: string,
     userId: string,
+    scopeContext?: ScopeContext,
   ): Promise<Contract> {
+    await this.getContract(id, scopeContext);
+
     const { data, error } = await this.supabase
       .from('contracts')
       .update({
@@ -221,6 +247,7 @@ export class LegalService {
     status?: string,
     caseType?: string,
     priority?: string,
+    scopeContext?: ScopeContext,
   ): Promise<LegalCase[]> {
     let query = this.supabase
       .from('legal_cases')
@@ -243,13 +270,13 @@ export class LegalService {
       throw new BadRequestException(`Failed to fetch legal cases: ${error.message}`);
     }
 
-    return data || [];
+    return applyScopeToRows(data || [], scopeContext);
   }
 
   /**
    * Get legal case by ID
    */
-  async getLegalCase(id: string): Promise<LegalCase> {
+  async getLegalCase(id: string, scopeContext?: ScopeContext): Promise<LegalCase> {
     const { data, error } = await this.supabase
       .from('legal_cases')
       .select('*')
@@ -269,7 +296,13 @@ export class LegalService {
   async createLegalCase(
     dto: Partial<LegalCase>,
     userId: string,
+    scopeContext?: ScopeContext,
   ): Promise<LegalCase> {
+    if (dto.constituency_id && scopeContext) {
+      const scoped = applyScopeToRows([{ constituency_id: dto.constituency_id } as any], scopeContext);
+      if (scoped.length === 0) throw new BadRequestException('Case constituency is outside scope');
+    }
+
     const caseNumber = await this.generateCaseNumber();
 
     const { data, error } = await this.supabase
@@ -305,7 +338,10 @@ export class LegalService {
     id: string,
     dto: Partial<LegalCase>,
     userId: string,
+    scopeContext?: ScopeContext,
   ): Promise<LegalCase> {
+    await this.getLegalCase(id, scopeContext);
+
     const updates: any = {
       ...dto,
       updated_at: new Date().toISOString(),
@@ -344,6 +380,7 @@ export class LegalService {
   async getComplianceItems(
     constituencyId?: string,
     status?: string,
+    scopeContext?: ScopeContext,
   ): Promise<ComplianceItem[]> {
     let query = this.supabase
       .from('compliance_items')
@@ -363,7 +400,7 @@ export class LegalService {
       throw new BadRequestException(`Failed to fetch compliance items: ${error.message}`);
     }
 
-    return data || [];
+    return applyScopeToRows(data || [], scopeContext);
   }
 
   /**
@@ -374,7 +411,13 @@ export class LegalService {
     status: string,
     userId: string,
     notes?: string,
+    scopeContext?: ScopeContext,
   ): Promise<ComplianceItem> {
+    const existing = await this.getComplianceItems(undefined, undefined, scopeContext);
+    if (!existing.find(x => x.id === id)) {
+      throw new NotFoundException('Compliance item not found');
+    }
+
     const { data, error } = await this.supabase
       .from('compliance_items')
       .update({
@@ -408,6 +451,7 @@ export class LegalService {
   async getLegalOpinions(
     opinionType?: string,
     search?: string,
+    scopeContext?: ScopeContext,
   ): Promise<LegalOpinion[]> {
     let query = this.supabase
       .from('legal_opinions')
@@ -427,7 +471,7 @@ export class LegalService {
       throw new BadRequestException(`Failed to fetch legal opinions: ${error.message}`);
     }
 
-    return data || [];
+    return applyScopeToRows(data || [], scopeContext);
   }
 
   /**
@@ -436,6 +480,7 @@ export class LegalService {
   async createLegalOpinion(
     dto: Partial<LegalOpinion>,
     userId: string,
+    scopeContext?: ScopeContext,
   ): Promise<LegalOpinion> {
     const referenceNumber = await this.generateOpinionReference();
 
@@ -468,7 +513,7 @@ export class LegalService {
   /**
    * Get legal dashboard summary
    */
-  async getDashboardSummary(): Promise<{
+  async getDashboardSummary(scopeContext?: ScopeContext): Promise<{
     compliance_rate: number;
     pending_items: number;
     active_cases: number;
@@ -476,9 +521,7 @@ export class LegalService {
     contracts_expiring_soon: number;
   }> {
     // Get compliance stats
-    const { data: complianceData } = await this.supabase
-      .from('compliance_items')
-      .select('status');
+    const complianceData = await this.getComplianceItems(undefined, undefined, scopeContext);
 
     const total = (complianceData || []).length;
     const compliant = (complianceData || []).filter(c => c.status === 'compliant').length;
@@ -486,20 +529,15 @@ export class LegalService {
     const nonCompliant = (complianceData || []).filter(c => c.status === 'non_compliant').length;
 
     // Get active cases count
-    const { count: activeCases } = await this.supabase
-      .from('legal_cases')
-      .select('id', { count: 'exact', head: true })
-      .in('status', ['open', 'under_review']);
+    const activeCases = (await this.getLegalCases(undefined, undefined, undefined, scopeContext))
+      .filter(c => ['open', 'under_review'].includes(c.status)).length;
 
     // Get contracts expiring in 30 days
     const thirtyDaysFromNow = new Date();
     thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
 
-    const { count: expiringContracts } = await this.supabase
-      .from('contracts')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'active')
-      .lte('end_date', thirtyDaysFromNow.toISOString().split('T')[0]);
+    const expiringContracts = (await this.getContracts(undefined, 'active', undefined, scopeContext))
+      .filter(c => (c.end_date || '') <= thirtyDaysFromNow.toISOString().split('T')[0]).length;
 
     return {
       compliance_rate: total > 0 ? Math.round((compliant / total) * 100) : 100,

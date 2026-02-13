@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ScopeContext } from '../common/scope/scope-context';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 @Injectable()
 export class PublicService {
@@ -32,7 +34,7 @@ export class PublicService {
   }
 
   async getProjects(filters: any) {
-    const { constituencyId, sector, status, page, limit } = filters;
+    const { constituencyId, sector, status, page, limit, scopeContext } = filters;
 
     let query = this.supabase
       .from('projects')
@@ -74,7 +76,8 @@ export class PublicService {
     }
 
     // Sanitize data - remove any sensitive fields
-    const sanitizedData = data?.map(project => this.sanitizeProject(project));
+    const scopedData = applyScopeToRows(data || [], scopeContext);
+    const sanitizedData = scopedData?.map(project => this.sanitizeProject(project));
 
     return {
       data: sanitizedData,
@@ -87,7 +90,7 @@ export class PublicService {
     };
   }
 
-  async getProject(id: string) {
+  async getProject(id: string, scopeContext?: ScopeContext) {
     const { data, error } = await this.supabase
       .from('projects')
       .select(`
@@ -115,10 +118,14 @@ export class PublicService {
       throw new NotFoundException('Project not found or not publicly accessible');
     }
 
+    if (scopeContext && applyScopeToRows([data], scopeContext).length === 0) {
+      throw new NotFoundException('Project not found or not publicly accessible');
+    }
+
     return this.sanitizeProject(data);
   }
 
-  async getConstituencies(provinceId?: string) {
+  async getConstituencies(provinceId?: string, scopeContext?: ScopeContext) {
     let query = this.supabase
       .from('constituencies')
       .select(`
@@ -140,7 +147,7 @@ export class PublicService {
     }
 
     // Filter by province if provided
-    let filtered = data || [];
+    let filtered = applyScopeToRows(data || [], scopeContext);
     if (provinceId) {
       filtered = filtered.filter((c: any) =>
         c.district?.province?.id === provinceId
@@ -167,7 +174,7 @@ export class PublicService {
     return withStats;
   }
 
-  async getConstituencyStats(id: string) {
+  async getConstituencyStats(id: string, scopeContext?: ScopeContext) {
     // Get constituency details
     const { data: constituency, error: consError } = await this.supabase
       .from('constituencies')
@@ -182,7 +189,7 @@ export class PublicService {
       .eq('id', id)
       .single();
 
-    if (consError || !constituency) {
+    if (consError || !constituency || (scopeContext && applyScopeToRows([constituency], scopeContext).length === 0)) {
       throw new NotFoundException('Constituency not found');
     }
 
@@ -238,11 +245,13 @@ export class PublicService {
     };
   }
 
-  async getNationalStats() {
+  async getNationalStats(scopeContext?: ScopeContext) {
     // Get all constituencies
-    const { data: constituencies } = await this.supabase
+    const { data: constituenciesRaw } = await this.supabase
       .from('constituencies')
-      .select('total_budget, allocated_budget, disbursed_budget');
+      .select('id, total_budget, allocated_budget, disbursed_budget, district:districts(province:provinces(name))');
+
+    const constituencies = applyScopeToRows(constituenciesRaw || [], scopeContext);
 
     const nationalBudget = {
       total: 0,
@@ -324,16 +333,14 @@ export class PublicService {
     };
   }
 
-  async getSummaryStats() {
-    const { count: totalProjects } = await this.supabase
+  async getSummaryStats(scopeContext?: ScopeContext) {
+    const { data: projectsRaw } = await this.supabase
       .from('projects')
-      .select('*', { count: 'exact', head: true })
+      .select('id, status, constituency:constituencies(id, district:districts(province:provinces(name)))')
       .in('status', this.PUBLIC_STATUSES);
-
-    const { count: completedProjects } = await this.supabase
-      .from('projects')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'completed');
+    const projects = applyScopeToRows(projectsRaw || [], scopeContext);
+    const totalProjects = projects.length;
+    const completedProjects = projects.filter(p => p.status === 'completed').length;
 
     const { data: budgetData } = await this.supabase
       .from('constituencies')
@@ -388,7 +395,7 @@ export class PublicService {
     };
   }
 
-  async getPublishedReports(constituencyId?: string, reportType?: string) {
+  async getPublishedReports(constituencyId?: string, reportType?: string, scopeContext?: ScopeContext) {
     // This would query a published_reports or documents table
     // For now, return empty array - to be implemented when reports are published
     return {
