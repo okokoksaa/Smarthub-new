@@ -6,6 +6,7 @@ import {
   Param,
   Body,
   Query,
+  Request,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -42,12 +43,14 @@ export class BudgetsController {
     @Query('constituency_id') constituencyId?: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
+    @Request() req?: any,
   ) {
     return this.budgetsService.findAllBudgets({
       fiscalYear: fiscalYear ? Number(fiscalYear) : undefined,
       constituencyId,
       page: Number(page),
       limit: Number(limit),
+      scopeContext: req?.scopeContext,
     });
   }
 
@@ -114,6 +117,7 @@ export class BudgetsController {
     @Query('status') status?: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
+    @Request() req?: any,
   ) {
     return this.budgetsService.findAllReturns({
       fiscalYear: fiscalYear ? Number(fiscalYear) : undefined,
@@ -122,6 +126,7 @@ export class BudgetsController {
       status,
       page: Number(page),
       limit: Number(limit),
+      scopeContext: req?.scopeContext,
     });
   }
 

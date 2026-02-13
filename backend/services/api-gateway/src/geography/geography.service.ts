@@ -6,6 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ScopeContext } from '../common/scope/scope-context';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 export interface Province {
   id: string;
@@ -64,7 +66,7 @@ export class GeographyService {
 
   // ==================== PROVINCES ====================
 
-  async findAllProvinces(): Promise<Province[]> {
+  async findAllProvinces(scopeContext?: ScopeContext): Promise<Province[]> {
     const { data, error } = await this.supabase
       .from('provinces')
       .select('*')
@@ -75,7 +77,7 @@ export class GeographyService {
       throw new BadRequestException('Failed to fetch provinces');
     }
 
-    return data || [];
+    return applyScopeToRows(data || [], scopeContext);
   }
 
   async findProvinceById(id: string): Promise<Province> {
@@ -94,7 +96,7 @@ export class GeographyService {
 
   // ==================== DISTRICTS ====================
 
-  async findAllDistricts(provinceId?: string): Promise<District[]> {
+  async findAllDistricts(provinceId?: string, scopeContext?: ScopeContext): Promise<District[]> {
     let query = this.supabase
       .from('districts')
       .select(`
@@ -114,7 +116,7 @@ export class GeographyService {
       throw new BadRequestException('Failed to fetch districts');
     }
 
-    return data || [];
+    return applyScopeToRows(data || [], scopeContext);
   }
 
   async findDistrictById(id: string): Promise<District> {
@@ -136,7 +138,7 @@ export class GeographyService {
 
   // ==================== CONSTITUENCIES ====================
 
-  async findAllConstituencies(districtId?: string): Promise<Constituency[]> {
+  async findAllConstituencies(districtId?: string, scopeContext?: ScopeContext): Promise<Constituency[]> {
     let query = this.supabase
       .from('constituencies')
       .select(`
@@ -159,7 +161,7 @@ export class GeographyService {
       throw new BadRequestException('Failed to fetch constituencies');
     }
 
-    return data || [];
+    return applyScopeToRows(data || [], scopeContext);
   }
 
   async findConstituencyById(id: string): Promise<Constituency> {
@@ -184,7 +186,7 @@ export class GeographyService {
 
   // ==================== WARDS ====================
 
-  async findAllWards(constituencyId?: string): Promise<Ward[]> {
+  async findAllWards(constituencyId?: string, scopeContext?: ScopeContext): Promise<Ward[]> {
     let query = this.supabase
       .from('wards')
       .select(`
@@ -210,7 +212,7 @@ export class GeographyService {
       throw new BadRequestException('Failed to fetch wards');
     }
 
-    return data || [];
+    return applyScopeToRows(data || [], scopeContext);
   }
 
   async findWardById(id: string): Promise<Ward> {
@@ -241,7 +243,7 @@ export class GeographyService {
   /**
    * Get full hierarchy: Province -> District -> Constituency -> Ward
    */
-  async getHierarchy(): Promise<{
+  async getHierarchy(scopeContext?: ScopeContext): Promise<{
     provinces: Array<Province & { districts: Array<District & { constituencies: Constituency[] }> }>;
   }> {
     const { data: provinces, error: provError } = await this.supabase
@@ -271,8 +273,10 @@ export class GeographyService {
       throw new BadRequestException('Failed to fetch hierarchy');
     }
 
+    const scopedProvinces = applyScopeToRows(provinces || [], scopeContext);
+
     // Build hierarchy
-    const hierarchy = (provinces || []).map((province) => ({
+    const hierarchy = scopedProvinces.map((province) => ({
       ...province,
       districts: (districts || [])
         .filter((d) => d.province_id === province.id)

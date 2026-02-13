@@ -47,8 +47,10 @@ export function matchesProvince(record: any, provinceName: string): boolean {
   const normalizedTarget = provinceName.toLowerCase();
   const candidates = [
     record?.province,
+    record?.province?.name,
     record?.province_name,
     record?.provinceName,
+    record?.name,
     record?.constituency?.district?.province?.name,
     record?.constituency?.districts?.provinces?.name,
     record?.district?.province?.name,

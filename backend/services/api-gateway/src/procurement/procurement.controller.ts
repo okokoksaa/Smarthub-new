@@ -6,6 +6,7 @@ import {
   Param,
   Body,
   Query,
+  Request,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -43,6 +44,7 @@ export class ProcurementController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 20,
     @CurrentUser() user?: any,
+    @Request() req?: any,
   ) {
     return this.procurementService.findAll({
       status,
@@ -51,6 +53,7 @@ export class ProcurementController {
       page,
       limit,
       user,
+      scopeContext: req?.scopeContext,
     });
   }
 

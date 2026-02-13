@@ -10,6 +10,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CreateProcurementDto } from './dto/create-procurement.dto';
 import { EvaluateBidDto } from './dto/evaluate-bid.dto';
 import { AwardContractDto } from './dto/award-contract.dto';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 @Injectable()
 export class ProcurementService {
@@ -33,13 +34,13 @@ export class ProcurementService {
   }
 
   async findAll(filters: any) {
-    const { status, constituencyId, procurementMethod, page, limit } = filters;
+    const { status, constituencyId, procurementMethod, page, limit, scopeContext } = filters;
 
     let query = this.supabase
       .from('procurements')
       .select(`
         *,
-        constituency:constituencies(id, name, code),
+        constituency:constituencies(id, name, code, district:districts(id, name, province:provinces(id, name))),
         project:projects(id, name, project_number),
         awarded_contractor:contractors(id, company_name)
       `, { count: 'exact' })
@@ -56,7 +57,17 @@ export class ProcurementService {
       throw new BadRequestException('Failed to fetch procurements');
     }
 
-    return { data, pagination: { page, limit, total: count || 0, pages: Math.ceil((count || 0) / limit) } };
+    const scopedData = applyScopeToRows(data || [], scopeContext);
+
+    return {
+      data: scopedData,
+      pagination: {
+        page,
+        limit,
+        total: scopedData.length,
+        pages: Math.ceil(scopedData.length / limit) || 1,
+      },
+    };
   }
 
   async findOne(id: string, user: any) {

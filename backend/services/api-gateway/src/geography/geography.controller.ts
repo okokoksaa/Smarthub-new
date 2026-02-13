@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   Query,
+  Request,
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
@@ -21,8 +22,8 @@ export class GeographyController {
 
   @Get('provinces')
   @ApiOperation({ summary: 'List all provinces' })
-  async findAllProvinces() {
-    const data = await this.geographyService.findAllProvinces();
+  async findAllProvinces(@Request() req?: any) {
+    const data = await this.geographyService.findAllProvinces(req?.scopeContext);
     return { data };
   }
 
@@ -39,8 +40,8 @@ export class GeographyController {
   @Get('districts')
   @ApiOperation({ summary: 'List all districts, optionally filtered by province' })
   @ApiQuery({ name: 'province_id', required: false, description: 'Filter by province UUID' })
-  async findAllDistricts(@Query('province_id') provinceId?: string) {
-    const data = await this.geographyService.findAllDistricts(provinceId);
+  async findAllDistricts(@Query('province_id') provinceId?: string, @Request() req?: any) {
+    const data = await this.geographyService.findAllDistricts(provinceId, req?.scopeContext);
     return { data };
   }
 
@@ -57,8 +58,8 @@ export class GeographyController {
   @Get('constituencies')
   @ApiOperation({ summary: 'List all constituencies, optionally filtered by district' })
   @ApiQuery({ name: 'district_id', required: false, description: 'Filter by district UUID' })
-  async findAllConstituencies(@Query('district_id') districtId?: string) {
-    const data = await this.geographyService.findAllConstituencies(districtId);
+  async findAllConstituencies(@Query('district_id') districtId?: string, @Request() req?: any) {
+    const data = await this.geographyService.findAllConstituencies(districtId, req?.scopeContext);
     return { data };
   }
 
@@ -75,8 +76,8 @@ export class GeographyController {
   @Get('wards')
   @ApiOperation({ summary: 'List all wards, optionally filtered by constituency' })
   @ApiQuery({ name: 'constituency_id', required: false, description: 'Filter by constituency UUID' })
-  async findAllWards(@Query('constituency_id') constituencyId?: string) {
-    const data = await this.geographyService.findAllWards(constituencyId);
+  async findAllWards(@Query('constituency_id') constituencyId?: string, @Request() req?: any) {
+    const data = await this.geographyService.findAllWards(constituencyId, req?.scopeContext);
     return { data };
   }
 
@@ -92,8 +93,8 @@ export class GeographyController {
 
   @Get('hierarchy')
   @ApiOperation({ summary: 'Get full geographic hierarchy (Province -> District -> Constituency)' })
-  async getHierarchy() {
-    const data = await this.geographyService.getHierarchy();
+  async getHierarchy(@Request() req?: any) {
+    const data = await this.geographyService.getHierarchy(req?.scopeContext);
     return { data };
   }
 

@@ -14,6 +14,7 @@ import {
   CreateExpenditureReturnDto,
   ReviewReturnDto,
 } from './dto/budget.dto';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 @Injectable()
 export class BudgetsService {
@@ -36,13 +37,13 @@ export class BudgetsService {
   // ==================== BUDGETS ====================
 
   async findAllBudgets(filters: any) {
-    const { fiscalYear, constituencyId, page = 1, limit = 20 } = filters;
+    const { fiscalYear, constituencyId, page = 1, limit = 20, scopeContext } = filters;
 
     let query = this.supabase
       .from('budgets')
       .select(`
         *,
-        constituency:constituencies(id, name, code)
+        constituency:constituencies(id, name, code, district:districts(id, name, province:provinces(id, name)))
       `, { count: 'exact' })
       .order('fiscal_year', { ascending: false });
 
@@ -56,7 +57,17 @@ export class BudgetsService {
       throw new BadRequestException('Failed to fetch budgets');
     }
 
-    return { data, pagination: { page, limit, total: count || 0, pages: Math.ceil((count || 0) / limit) } };
+    const scopedData = applyScopeToRows(data || [], scopeContext);
+
+    return {
+      data: scopedData,
+      pagination: {
+        page,
+        limit,
+        total: scopedData.length,
+        pages: Math.ceil(scopedData.length / limit) || 1,
+      },
+    };
   }
 
   async findBudgetByConstituency(constituencyId: string, fiscalYear: number) {
@@ -188,13 +199,13 @@ export class BudgetsService {
   // ==================== EXPENDITURE RETURNS ====================
 
   async findAllReturns(filters: any) {
-    const { fiscalYear, quarter, constituencyId, status, page = 1, limit = 20 } = filters;
+    const { fiscalYear, quarter, constituencyId, status, page = 1, limit = 20, scopeContext } = filters;
 
     let query = this.supabase
       .from('expenditure_returns')
       .select(`
         *,
-        constituency:constituencies(id, name, code)
+        constituency:constituencies(id, name, code, district:districts(id, name, province:provinces(id, name)))
       `, { count: 'exact' })
       .order('fiscal_year', { ascending: false })
       .order('quarter', { ascending: false });
@@ -210,7 +221,17 @@ export class BudgetsService {
       throw new BadRequestException('Failed to fetch expenditure returns');
     }
 
-    return { data, pagination: { page, limit, total: count || 0, pages: Math.ceil((count || 0) / limit) } };
+    const scopedData = applyScopeToRows(data || [], scopeContext);
+
+    return {
+      data: scopedData,
+      pagination: {
+        page,
+        limit,
+        total: scopedData.length,
+        pages: Math.ceil(scopedData.length / limit) || 1,
+      },
+    };
   }
 
   async createReturn(dto: CreateExpenditureReturnDto, user: any) {
