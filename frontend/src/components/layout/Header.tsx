@@ -54,7 +54,7 @@ const scopeOptions = [
 export function Header() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { roles, loading: rolesLoading } = useUserRoles();
+  const { roles, effectiveRoles, activeRole, setActiveRole, loading: rolesLoading, isSuperAdmin } = useUserRoles();
   const { toast } = useToast();
   const {
     notifications,
@@ -93,15 +93,14 @@ export function Header() {
 
   const getPrimaryRole = (): string => {
     if (rolesLoading) return 'Loading...';
-    if (roles.length === 0) return 'No Role Assigned';
-    // Return the first (primary) role's display name
-    return roleDisplayNames[roles[0]] || roles[0];
+    if (effectiveRoles.length === 0) return 'No Role Assigned';
+    return roleDisplayNames[effectiveRoles[0]] || effectiveRoles[0];
   };
 
   const getRoleBadgeVariant = (): 'default' | 'secondary' | 'destructive' | 'outline' => {
-    if (roles.includes('super_admin')) return 'destructive';
-    if (roles.includes('ministry_official') || roles.includes('auditor')) return 'default';
-    if (roles.includes('plgo') || roles.includes('cdfc_chair') || roles.includes('tac_chair')) return 'secondary';
+    if (effectiveRoles.includes('super_admin')) return 'destructive';
+    if (effectiveRoles.includes('ministry_official') || effectiveRoles.includes('auditor')) return 'default';
+    if (effectiveRoles.includes('plgo') || effectiveRoles.includes('cdfc_chair') || effectiveRoles.includes('tac_chair')) return 'secondary';
     return 'outline';
   };
 
@@ -277,6 +276,39 @@ export function Header() {
                     ))}
                   </div>
                 </div>
+
+                {isSuperAdmin() && roles.length > 1 && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <div className="px-2 py-1.5">
+                      <p className="text-xs font-medium text-muted-foreground mb-1.5">Active Role View</p>
+                      <div className="space-y-1">
+                        <Button
+                          variant={!activeRole ? 'secondary' : 'ghost'}
+                          size="sm"
+                          className="w-full justify-start h-7 text-xs"
+                          onClick={() => setActiveRole(null)}
+                        >
+                          Super Admin (Full)
+                        </Button>
+                        {roles
+                          .filter((role) => role !== 'super_admin')
+                          .map((role) => (
+                            <Button
+                              key={role}
+                              variant={activeRole === role ? 'secondary' : 'ghost'}
+                              size="sm"
+                              className="w-full justify-start h-7 text-xs"
+                              onClick={() => setActiveRole(role)}
+                            >
+                              {roleDisplayNames[role]}
+                            </Button>
+                          ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 <DropdownMenuSeparator />
               </>
             )}

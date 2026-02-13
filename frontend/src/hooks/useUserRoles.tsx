@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from './useAuth';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 export type AppRole =
   | 'super_admin'
@@ -22,8 +22,14 @@ interface UserRolesResponse {
   roles: AppRole[];
 }
 
+const ACTIVE_ROLE_STORAGE_KEY = 'cdf.activeRole';
+
 export function useUserRoles() {
   const { user } = useAuth();
+  const [activeRole, setActiveRoleState] = useState<AppRole | null>(() => {
+    const saved = localStorage.getItem(ACTIVE_ROLE_STORAGE_KEY);
+    return (saved as AppRole) || null;
+  });
 
   const { data: roles = [], isLoading: loading } = useQuery({
     queryKey: ['auth', 'roles'],
@@ -44,26 +50,44 @@ export function useUserRoles() {
     retry: 1,
   });
 
+  const effectiveRoles: AppRole[] =
+    activeRole && roles.includes(activeRole) ? [activeRole] : roles;
+
+  const setActiveRole = (role: AppRole | null) => {
+    if (!role) {
+      localStorage.removeItem(ACTIVE_ROLE_STORAGE_KEY);
+      setActiveRoleState(null);
+      return;
+    }
+
+    if (!roles.includes(role)) {
+      return;
+    }
+
+    localStorage.setItem(ACTIVE_ROLE_STORAGE_KEY, role);
+    setActiveRoleState(role);
+  };
+
   // Memoized helper functions to avoid recreating on every render
   const helpers = useMemo(() => ({
     hasRole: (role: AppRole): boolean => {
-      return roles.includes(role);
+      return effectiveRoles.includes(role);
     },
 
     hasAnyRole: (checkRoles: AppRole[]): boolean => {
-      return checkRoles.some(role => roles.includes(role));
+      return checkRoles.some(role => effectiveRoles.includes(role));
     },
 
     hasAllRoles: (checkRoles: AppRole[]): boolean => {
-      return checkRoles.every(role => roles.includes(role));
+      return checkRoles.every(role => effectiveRoles.includes(role));
     },
 
     isAdmin: (): boolean => {
-      return roles.some(role => ['super_admin', 'ministry_official'].includes(role));
+      return effectiveRoles.some(role => ['super_admin', 'ministry_official'].includes(role));
     },
 
     isAuditor: (): boolean => {
-      return roles.includes('auditor');
+      return effectiveRoles.includes('auditor');
     },
 
     isSuperAdmin: (): boolean => {
@@ -72,85 +96,85 @@ export function useUserRoles() {
 
     // Project management permissions
     canManageProjects: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'ministry_official', 'plgo', 'cdfc_chair', 'cdfc_member', 'wdc_member'].includes(role)
       );
     },
 
     canApproveProjects: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'plgo', 'ministry_official'].includes(role)
       );
     },
 
     canReviewProjects: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'tac_chair', 'tac_member', 'cdfc_chair', 'cdfc_member'].includes(role)
       );
     },
 
     // Payment permissions
     canManagePayments: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'finance_officer', 'cdfc_chair', 'plgo'].includes(role)
       );
     },
 
     // Panel A authorization (MP, CDFC Chair, Finance Officer)
     canApprovePanelA: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'mp', 'cdfc_chair', 'finance_officer'].includes(role)
       );
     },
 
     // Panel B authorization (PLGO, Ministry Official)
     canApprovePanelB: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'plgo', 'ministry_official'].includes(role)
       );
     },
 
     // Audit permissions
     canViewAuditLogs: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'auditor', 'ministry_official'].includes(role)
       );
     },
 
     canInvestigate: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'auditor'].includes(role)
       );
     },
 
     // Committee permissions
     canManageCommittees: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'plgo', 'ministry_official'].includes(role)
       );
     },
 
     canChairMeetings: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'cdfc_chair', 'tac_chair'].includes(role)
       );
     },
 
     canVoteInCommittee: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['cdfc_chair', 'cdfc_member', 'tac_chair', 'tac_member', 'wdc_member'].includes(role)
       );
     },
 
     // Budget permissions
     canManageBudgets: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'ministry_official', 'finance_officer'].includes(role)
       );
     },
 
     canApproveBudgets: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'ministry_official'].includes(role)
       );
     },
@@ -158,25 +182,28 @@ export function useUserRoles() {
     // Document permissions
     canUploadDocuments: (): boolean => {
       // Most roles can upload documents
-      return roles.length > 0;
+      return effectiveRoles.length > 0;
     },
 
     canVerifyDocuments: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'plgo', 'ministry_official', 'auditor'].includes(role)
       );
     },
 
     // Calendar/Holiday permissions
     canManageHolidays: (): boolean => {
-      return roles.some(role =>
+      return effectiveRoles.some(role =>
         ['super_admin', 'ministry_official'].includes(role)
       );
     },
-  }), [roles]);
+  }), [roles, effectiveRoles]);
 
   return {
     roles,
+    effectiveRoles,
+    activeRole,
+    setActiveRole,
     loading,
     ...helpers,
   };
@@ -184,11 +211,11 @@ export function useUserRoles() {
 
 // Type-safe permission check hook for specific actions
 export function useHasPermission(requiredRoles: AppRole[]) {
-  const { roles, loading } = useUserRoles();
+  const { effectiveRoles, loading } = useUserRoles();
 
   const hasPermission = useMemo(() => {
-    return requiredRoles.some(role => roles.includes(role));
-  }, [roles, requiredRoles]);
+    return requiredRoles.some(role => effectiveRoles.includes(role));
+  }, [effectiveRoles, requiredRoles]);
 
   return { hasPermission, loading };
 }
