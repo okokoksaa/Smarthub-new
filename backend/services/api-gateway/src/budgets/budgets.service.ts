@@ -15,6 +15,7 @@ import {
   ReviewReturnDto,
 } from './dto/budget.dto';
 import { applyScopeToRows } from '../common/scope/scope.utils';
+import { ScopeContext } from '../common/scope/scope-context';
 
 @Injectable()
 export class BudgetsService {
@@ -70,7 +71,7 @@ export class BudgetsService {
     };
   }
 
-  async findBudgetByConstituency(constituencyId: string, fiscalYear: number) {
+  async findBudgetByConstituency(constituencyId: string, fiscalYear: number, scopeContext?: ScopeContext) {
     const { data, error } = await this.supabase
       .from('budgets')
       .select(`
@@ -82,6 +83,11 @@ export class BudgetsService {
       .single();
 
     if (error || !data) {
+      throw new NotFoundException(`Budget not found for constituency ${constituencyId} in fiscal year ${fiscalYear}`);
+    }
+
+    const scoped = applyScopeToRows([data], scopeContext);
+    if (!scoped.length) {
       throw new NotFoundException(`Budget not found for constituency ${constituencyId} in fiscal year ${fiscalYear}`);
     }
 
@@ -169,8 +175,8 @@ export class BudgetsService {
     return budget;
   }
 
-  async getBudgetUtilization(constituencyId: string, fiscalYear: number) {
-    const budget = await this.findBudgetByConstituency(constituencyId, fiscalYear);
+  async getBudgetUtilization(constituencyId: string, fiscalYear: number, scopeContext?: ScopeContext) {
+    const budget = await this.findBudgetByConstituency(constituencyId, fiscalYear, scopeContext);
 
     // Get project spending
     const { data: payments } = await this.supabase

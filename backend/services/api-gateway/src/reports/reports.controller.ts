@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
 import { ReportsService } from './reports.service';
 import { GenerateReportDto } from './dto/generate-report.dto';
@@ -25,8 +26,8 @@ export class ReportsController {
    */
   @Get('constituency/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  async getConstituencyReport(@Param('id', ParseUUIDPipe) id: string) {
-    const report = await this.reportsService.getConstituencyReport(id);
+  async getConstituencyReport(@Param('id', ParseUUIDPipe) id: string, @Req() req?: any) {
+    const report = await this.reportsService.getConstituencyReport(id, req?.scopeContext);
 
     return {
       success: true,
@@ -44,8 +45,9 @@ export class ReportsController {
   async getFinancialReport(
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
+    @Req() req?: any,
   ) {
-    const report = await this.reportsService.getFinancialReport(startDate, endDate);
+    const report = await this.reportsService.getFinancialReport(startDate, endDate, req?.scopeContext);
 
     return {
       success: true,
@@ -61,8 +63,9 @@ export class ReportsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   async getProjectStatusReport(
     @Query('constituency_id') constituencyId?: string,
+    @Req() req?: any,
   ) {
-    const report = await this.reportsService.getProjectStatusReport(constituencyId);
+    const report = await this.reportsService.getProjectStatusReport(constituencyId, req?.scopeContext);
 
     return {
       success: true,
@@ -81,11 +84,13 @@ export class ReportsController {
     @Query('start_date') startDate?: string,
     @Query('end_date') endDate?: string,
     @Query('constituency_id') constituencyId?: string,
+    @Req() req?: any,
   ) {
     const report = await this.reportsService.getPaymentAnalyticsReport(
       startDate,
       endDate,
       constituencyId,
+      req?.scopeContext,
     );
 
     return {
@@ -103,8 +108,9 @@ export class ReportsController {
   @Roles('auditor', 'plgo', 'ministry_official', 'super_admin')
   async getComplianceReport(
     @Query('constituency_id') constituencyId?: string,
+    @Req() req?: any,
   ) {
-    const report = await this.reportsService.getComplianceReport(constituencyId);
+    const report = await this.reportsService.getComplianceReport(constituencyId, req?.scopeContext);
 
     return {
       success: true,

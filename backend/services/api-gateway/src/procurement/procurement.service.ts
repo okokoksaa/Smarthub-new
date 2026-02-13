@@ -11,6 +11,7 @@ import { CreateProcurementDto } from './dto/create-procurement.dto';
 import { EvaluateBidDto } from './dto/evaluate-bid.dto';
 import { AwardContractDto } from './dto/award-contract.dto';
 import { applyScopeToRows } from '../common/scope/scope.utils';
+import { ScopeContext } from '../common/scope/scope-context';
 
 @Injectable()
 export class ProcurementService {
@@ -70,7 +71,7 @@ export class ProcurementService {
     };
   }
 
-  async findOne(id: string, user: any) {
+  async findOne(id: string, user: any, scopeContext?: ScopeContext) {
     const { data, error } = await this.supabase
       .from('procurements')
       .select(`*, constituency:constituencies(id, name, code), project:projects(id, name, project_number, status, budget), awarded_contractor:contractors(id, company_name, registration_number)`)
@@ -78,6 +79,8 @@ export class ProcurementService {
       .single();
 
     if (error || !data) throw new NotFoundException(`Procurement with ID ${id} not found`);
+    const scoped = applyScopeToRows([data], scopeContext);
+    if (!scoped.length) throw new NotFoundException(`Procurement with ID ${id} not found`);
     return data;
   }
 
@@ -104,8 +107,8 @@ export class ProcurementService {
     return procurement;
   }
 
-  async update(id: string, updateDto: Partial<CreateProcurementDto>, user: any) {
-    const procurement = await this.findOne(id, user);
+  async update(id: string, updateDto: Partial<CreateProcurementDto>, user: any, scopeContext?: ScopeContext) {
+    const procurement = await this.findOne(id, user, scopeContext);
     if (procurement.status !== 'draft') throw new BadRequestException('Cannot update after publishing');
 
     const { data, error } = await this.supabase.from('procurements').update({ ...updateDto, updated_at: new Date().toISOString() }).eq('id', id).select().single();
@@ -113,8 +116,8 @@ export class ProcurementService {
     return data;
   }
 
-  async publish(id: string, user: any) {
-    const procurement = await this.findOne(id, user);
+  async publish(id: string, user: any, scopeContext?: ScopeContext) {
+    const procurement = await this.findOne(id, user, scopeContext);
     if (procurement.status !== 'draft') throw new BadRequestException('Only draft procurements can be published');
     if (!procurement.closing_date || !procurement.bid_opening_date) throw new BadRequestException('Closing and opening dates required');
 
@@ -125,8 +128,8 @@ export class ProcurementService {
     return data;
   }
 
-  async evaluateBid(procurementId: string, dto: EvaluateBidDto, user: any) {
-    const procurement = await this.findOne(procurementId, user);
+  async evaluateBid(procurementId: string, dto: EvaluateBidDto, user: any, scopeContext?: ScopeContext) {
+    const procurement = await this.findOne(procurementId, user, scopeContext);
     if (procurement.status !== 'evaluation') throw new BadRequestException('Must be in evaluation status');
 
     const { data: existing } = await this.supabase.from('procurement_evaluations').select('id').eq('bid_id', dto.bid_id).eq('evaluator_id', user.id).single();
@@ -147,14 +150,14 @@ export class ProcurementService {
     return data;
   }
 
-  async getEvaluations(procurementId: string, user: any) {
+  async getEvaluations(procurementId: string, user: any, scopeContext?: ScopeContext) {
     const { data, error } = await this.supabase.from('procurement_evaluations').select(`*, evaluator:profiles!procurement_evaluations_evaluator_id_fkey(id, first_name, last_name)`).eq('procurement_id', procurementId);
     if (error) throw new BadRequestException('Failed to fetch evaluations');
     return data;
   }
 
-  async awardContract(procurementId: string, dto: AwardContractDto, user: any) {
-    const procurement = await this.findOne(procurementId, user);
+  async awardContract(procurementId: string, dto: AwardContractDto, user: any, scopeContext?: ScopeContext) {
+    const procurement = await this.findOne(procurementId, user, scopeContext);
     if (procurement.status !== 'evaluation') throw new BadRequestException('Must be in evaluation status');
 
     const hasTwoEvaluators = await this.checkTwoEvaluatorRule(procurementId);
@@ -170,14 +173,14 @@ export class ProcurementService {
     return data;
   }
 
-  async getAuditTrail(procurementId: string, user: any) {
+  async getAuditTrail(procurementId: string, user: any, scopeContext?: ScopeContext) {
     const { data, error } = await this.supabase.from('procurement_audit_events').select(`*, actor:profiles!procurement_audit_events_actor_id_fkey(id, first_name, last_name)`).eq('procurement_id', procurementId).order('created_at', { ascending: false });
     if (error) throw new BadRequestException('Failed to fetch audit trail');
     return data;
   }
 
-  async getStatus(procurementId: string, user: any) {
-    const procurement = await this.findOne(procurementId, user);
+  async getStatus(procurementId: string, user: any, scopeContext?: ScopeContext) {
+    const procurement = await this.findOne(procurementId, user, scopeContext);
     const { count: bidCount } = await this.supabase.from('procurement_bids').select('*', { count: 'exact', head: true }).eq('procurement_id', procurementId);
     const hasTwoEvaluators = await this.checkTwoEvaluatorRule(procurementId);
 

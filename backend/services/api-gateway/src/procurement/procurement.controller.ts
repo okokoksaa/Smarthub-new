@@ -61,8 +61,8 @@ export class ProcurementController {
   @ApiOperation({ summary: 'Get procurement details' })
   @ApiResponse({ status: 200, description: 'Procurement retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Procurement not found' })
-  async findOne(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.procurementService.findOne(id, user);
+  async findOne(@Param('id') id: string, @CurrentUser() user: any, @Request() req?: any) {
+    return this.procurementService.findOne(id, user, req?.scopeContext);
   }
 
   @Post()
@@ -84,8 +84,9 @@ export class ProcurementController {
     @Param('id') id: string,
     @Body() updateDto: Partial<CreateProcurementDto>,
     @CurrentUser() user: any,
+    @Request() req?: any,
   ) {
-    return this.procurementService.update(id, updateDto, user);
+    return this.procurementService.update(id, updateDto, user, req?.scopeContext);
   }
 
   @Post(':id/publish')
@@ -94,8 +95,8 @@ export class ProcurementController {
   @ApiResponse({ status: 200, description: 'Tender published successfully' })
   @ApiResponse({ status: 400, description: 'Invalid tender state for publishing' })
   @Roles('cdfc_chair', 'plgo', 'super_admin')
-  async publish(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.procurementService.publish(id, user);
+  async publish(@Param('id') id: string, @CurrentUser() user: any, @Request() req?: any) {
+    return this.procurementService.publish(id, user, req?.scopeContext);
   }
 
   // ========== Sealed Bids Endpoints ==========
@@ -159,8 +160,8 @@ export class ProcurementController {
   @ApiOperation({ summary: 'Get all evaluations for procurement' })
   @ApiResponse({ status: 200, description: 'Evaluations retrieved successfully' })
   @Roles('tac_chair', 'tac_member', 'cdfc_chair', 'plgo', 'super_admin', 'auditor')
-  async getEvaluations(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.procurementService.getEvaluations(id, user);
+  async getEvaluations(@Param('id') id: string, @CurrentUser() user: any, @Request() req?: any) {
+    return this.procurementService.getEvaluations(id, user, req?.scopeContext);
   }
 
   // ========== Award Endpoints ==========
@@ -176,8 +177,9 @@ export class ProcurementController {
     @Param('id') id: string,
     @Body() awardContractDto: AwardContractDto,
     @CurrentUser() user: any,
+    @Request() req?: any,
   ) {
-    return this.procurementService.awardContract(id, awardContractDto, user);
+    return this.procurementService.awardContract(id, awardContractDto, user, req?.scopeContext);
   }
 
   // ========== Audit Trail Endpoint ==========
@@ -186,8 +188,8 @@ export class ProcurementController {
   @ApiOperation({ summary: 'Get audit trail for procurement' })
   @ApiResponse({ status: 200, description: 'Audit trail retrieved successfully' })
   @Roles('auditor', 'super_admin', 'ministry_official')
-  async getAuditTrail(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.procurementService.getAuditTrail(id, user);
+  async getAuditTrail(@Param('id') id: string, @CurrentUser() user: any, @Request() req?: any) {
+    return this.procurementService.getAuditTrail(id, user, req?.scopeContext);
   }
 
   // ========== Status Endpoint ==========
@@ -195,7 +197,7 @@ export class ProcurementController {
   @Get(':id/status')
   @ApiOperation({ summary: 'Get procurement workflow status' })
   @ApiResponse({ status: 200, description: 'Status retrieved successfully' })
-  async getStatus(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.procurementService.getStatus(id, user);
+  async getStatus(@Param('id') id: string, @CurrentUser() user: any, @Request() req?: any) {
+    return this.procurementService.getStatus(id, user, req?.scopeContext);
   }
 }

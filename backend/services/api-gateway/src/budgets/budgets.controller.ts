@@ -59,8 +59,9 @@ export class BudgetsController {
   async findBudgetByConstituency(
     @Param('constituencyId') constituencyId: string,
     @Param('fiscalYear') fiscalYear: number,
+    @Request() req?: any,
   ) {
-    return this.budgetsService.findBudgetByConstituency(constituencyId, Number(fiscalYear));
+    return this.budgetsService.findBudgetByConstituency(constituencyId, Number(fiscalYear), req?.scopeContext);
   }
 
   @Get('constituency/:constituencyId/:fiscalYear/utilization')
@@ -68,8 +69,9 @@ export class BudgetsController {
   async getBudgetUtilization(
     @Param('constituencyId') constituencyId: string,
     @Param('fiscalYear') fiscalYear: number,
+    @Request() req?: any,
   ) {
-    return this.budgetsService.getBudgetUtilization(constituencyId, Number(fiscalYear));
+    return this.budgetsService.getBudgetUtilization(constituencyId, Number(fiscalYear), req?.scopeContext);
   }
 
   @Post()

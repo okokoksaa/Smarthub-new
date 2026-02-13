@@ -5,6 +5,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { GenerateReportDto, ReportType } from './dto/generate-report.dto';
+import { ScopeContext } from '../common/scope/scope-context';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 export interface ConstituencyReport {
   constituency: {
@@ -137,7 +139,7 @@ export class ReportsService {
   /**
    * Generate a comprehensive constituency report
    */
-  async getConstituencyReport(constituencyId: string): Promise<ConstituencyReport> {
+  async getConstituencyReport(constituencyId: string, scopeContext?: ScopeContext): Promise<ConstituencyReport> {
     // Get constituency details
     const { data: constituency, error: constError } = await this.supabase
       .from('constituencies')
@@ -150,6 +152,16 @@ export class ReportsService {
 
     if (constError || !constituency) {
       throw new BadRequestException('Constituency not found');
+    }
+
+    const scopedConstituency = applyScopeToRows([
+      {
+        id: constituency.id,
+        constituency: { district: { province: { name: (constituency as any)?.districts?.provinces?.name } } },
+      },
+    ], scopeContext);
+    if (!scopedConstituency.length) {
+      throw new BadRequestException('Constituency not found in current scope');
     }
 
     // Get projects
@@ -237,7 +249,7 @@ export class ReportsService {
   /**
    * Generate financial summary report
    */
-  async getFinancialReport(startDate?: string, endDate?: string): Promise<FinancialReport> {
+  async getFinancialReport(startDate?: string, endDate?: string, scopeContext?: ScopeContext): Promise<FinancialReport> {
     const start = startDate || new Date(new Date().getFullYear(), 0, 1).toISOString();
     const end = endDate || new Date().toISOString();
 
@@ -257,8 +269,8 @@ export class ReportsService {
       .gte('created_at', start)
       .lte('created_at', end);
 
-    const budgetsList = budgets || [];
-    const paymentsList = payments || [];
+    const budgetsList = applyScopeToRows(budgets || [], scopeContext);
+    const paymentsList = applyScopeToRows(payments || [], scopeContext);
 
     const totalBudget = budgetsList.reduce((sum, b) => sum + (b.total_allocation || 0), 0);
     const totalDisbursed = budgetsList.reduce((sum, b) => sum + (b.amount_disbursed || 0), 0);
@@ -322,7 +334,7 @@ export class ReportsService {
   /**
    * Generate project status report
    */
-  async getProjectStatusReport(constituencyId?: string): Promise<ProjectStatusReport> {
+  async getProjectStatusReport(constituencyId?: string, scopeContext?: ScopeContext): Promise<ProjectStatusReport> {
     let query = this.supabase
       .from('projects')
       .select(`
@@ -336,7 +348,7 @@ export class ReportsService {
     }
 
     const { data: projects } = await query;
-    const projectsList = projects || [];
+    const projectsList = applyScopeToRows(projects || [], scopeContext);
 
     const byStatus: Record<string, number> = {};
     const byType: Record<string, number> = {};
@@ -374,6 +386,7 @@ export class ReportsService {
     startDate?: string,
     endDate?: string,
     constituencyId?: string,
+    scopeContext?: ScopeContext,
   ): Promise<PaymentAnalyticsReport> {
     const start = startDate || new Date(new Date().getFullYear(), 0, 1).toISOString();
     const end = endDate || new Date().toISOString();
@@ -389,7 +402,7 @@ export class ReportsService {
     }
 
     const { data: payments } = await query;
-    const paymentsList = payments || [];
+    const paymentsList = applyScopeToRows(payments || [], scopeContext);
 
     const totalAmount = paymentsList.reduce((sum, p) => sum + (p.amount || 0), 0);
     const byStatus: Record<string, { count: number; amount: number }> = {};
@@ -454,7 +467,7 @@ export class ReportsService {
   /**
    * Generate compliance dashboard report
    */
-  async getComplianceReport(constituencyId?: string): Promise<ComplianceReport> {
+  async getComplianceReport(constituencyId?: string, scopeContext?: ScopeContext): Promise<ComplianceReport> {
     // Get audit logs
     let auditQuery = this.supabase
       .from('audit_logs')
@@ -463,7 +476,7 @@ export class ReportsService {
       .limit(100);
 
     const { data: audits } = await auditQuery;
-    const auditsList = audits || [];
+    const auditsList = applyScopeToRows(audits || [], scopeContext);
 
     // Get documents for compliance check
     let docQuery = this.supabase.from('documents').select('id, is_immutable, document_type');

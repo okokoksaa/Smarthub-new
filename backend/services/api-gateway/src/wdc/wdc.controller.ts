@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -17,8 +17,8 @@ export class WdcController {
 
   @Get('signoffs/project/:projectId')
   @ApiOperation({ summary: 'Get WDC sign-off by project' })
-  async getByProject(@Param('projectId') projectId: string) {
-    return this.wdcService.getSignoffByProject(projectId);
+  async getByProject(@Param('projectId') projectId: string, @Req() req?: any) {
+    return this.wdcService.getSignoffByProject(projectId, req?.scopeContext);
   }
 
   @Post('signoffs')
@@ -27,15 +27,15 @@ export class WdcController {
   @ApiOperation({ summary: 'Create WDC sign-off' })
   @ApiResponse({ status: 201, description: 'WDC sign-off created' })
   async create(@Body() dto: CreateWdcSignoffDto, @Request() req: any) {
-    return this.wdcService.createSignoff(dto, req.user);
+    return this.wdcService.createSignoff(dto, req.user, req?.scopeContext);
   }
 
   @Patch('signoffs/:id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('wdc_member', 'cdfc_member', 'cdfc_chair', 'plgo')
   @ApiOperation({ summary: 'Update WDC sign-off' })
-  async update(@Param('id') id: string, @Body() dto: UpdateWdcSignoffDto) {
-    return this.wdcService.updateSignoff(id, dto);
+  async update(@Param('id') id: string, @Body() dto: UpdateWdcSignoffDto, @Req() req?: any) {
+    return this.wdcService.updateSignoff(id, dto, req?.scopeContext);
   }
 }
 

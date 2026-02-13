@@ -8,6 +8,7 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
 import { DocumentsService, DocumentFilters } from './documents.service';
 import { CreateDocumentDto, DocumentType } from './dto/create-document.dto';
@@ -35,6 +36,7 @@ export class DocumentsController {
     @Query('is_immutable') isImmutable?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Req() req?: any,
   ) {
     const filters: DocumentFilters = {
       project_id: projectId,
@@ -46,7 +48,7 @@ export class DocumentsController {
       limit: limit ? parseInt(limit, 10) : undefined,
     };
 
-    const result = await this.documentsService.findAll(filters);
+    const result = await this.documentsService.findAll(filters, req?.scopeContext);
 
     return {
       success: true,
@@ -66,8 +68,8 @@ export class DocumentsController {
    */
   @Get(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  async findOne(@Param('id', ParseUUIDPipe) id: string) {
-    const document = await this.documentsService.findOne(id);
+  async findOne(@Param('id', ParseUUIDPipe) id: string, @Req() req?: any) {
+    const document = await this.documentsService.findOne(id, req?.scopeContext);
 
     return {
       success: true,
@@ -81,8 +83,8 @@ export class DocumentsController {
    */
   @Get('project/:projectId')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  async findByProject(@Param('projectId', ParseUUIDPipe) projectId: string) {
-    const documents = await this.documentsService.findByProject(projectId);
+  async findByProject(@Param('projectId', ParseUUIDPipe) projectId: string, @Req() req?: any) {
+    const documents = await this.documentsService.findByProject(projectId, req?.scopeContext);
 
     return {
       success: true,
@@ -98,8 +100,9 @@ export class DocumentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   async findByConstituency(
     @Param('constituencyId', ParseUUIDPipe) constituencyId: string,
+    @Req() req?: any,
   ) {
-    const documents = await this.documentsService.findByConstituency(constituencyId);
+    const documents = await this.documentsService.findByConstituency(constituencyId, req?.scopeContext);
 
     return {
       success: true,
@@ -115,8 +118,9 @@ export class DocumentsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   async getStatistics(
     @Param('constituencyId', ParseUUIDPipe) constituencyId: string,
+    @Req() req?: any,
   ) {
-    const stats = await this.documentsService.getStatistics(constituencyId);
+    const stats = await this.documentsService.getStatistics(constituencyId, req?.scopeContext);
 
     return {
       success: true,
@@ -148,8 +152,9 @@ export class DocumentsController {
   async create(
     @Body() dto: CreateDocumentDto,
     @CurrentUser() user: { id: string },
+    @Req() req?: any,
   ) {
-    const document = await this.documentsService.create(dto, user.id);
+    const document = await this.documentsService.create(dto, user.id, req?.scopeContext);
 
     return {
       success: true,

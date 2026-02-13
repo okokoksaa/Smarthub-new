@@ -7,6 +7,8 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CreateDocumentDto, DocumentType } from './dto/create-document.dto';
+import { ScopeContext } from '../common/scope/scope-context';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 export interface Document {
   id: string;
@@ -64,7 +66,7 @@ export class DocumentsService {
   /**
    * Get all documents with optional filters
    */
-  async findAll(filters: DocumentFilters = {}): Promise<{
+  async findAll(filters: DocumentFilters = {}, scopeContext?: ScopeContext): Promise<{
     documents: Document[];
     total: number;
     page: number;
@@ -102,9 +104,11 @@ export class DocumentsService {
       throw new BadRequestException(`Failed to fetch documents: ${error.message}`);
     }
 
+    const scopedDocuments = applyScopeToRows((data as Document[]) || [], scopeContext);
+
     return {
-      documents: data as Document[],
-      total: count || 0,
+      documents: scopedDocuments,
+      total: scopeContext?.level === 'province' ? scopedDocuments.length : (count || 0),
       page,
       limit,
     };
@@ -113,7 +117,7 @@ export class DocumentsService {
   /**
    * Get a single document by ID
    */
-  async findOne(id: string): Promise<Document> {
+  async findOne(id: string, scopeContext?: ScopeContext): Promise<Document> {
     const { data, error } = await this.supabase
       .from('documents')
       .select(`
@@ -132,13 +136,18 @@ export class DocumentsService {
       throw new NotFoundException(`Document with ID ${id} not found`);
     }
 
+    const scoped = applyScopeToRows([data], scopeContext);
+    if (!scoped.length) {
+      throw new NotFoundException(`Document with ID ${id} not found`);
+    }
+
     return data as Document;
   }
 
   /**
    * Get documents for a project
    */
-  async findByProject(projectId: string): Promise<Document[]> {
+  async findByProject(projectId: string, scopeContext?: ScopeContext): Promise<Document[]> {
     const { data, error } = await this.supabase
       .from('documents')
       .select('*')
@@ -149,13 +158,13 @@ export class DocumentsService {
       throw new BadRequestException(`Failed to fetch project documents: ${error.message}`);
     }
 
-    return data as Document[];
+    return applyScopeToRows((data as Document[]) || [], scopeContext);
   }
 
   /**
    * Get documents for a constituency
    */
-  async findByConstituency(constituencyId: string): Promise<Document[]> {
+  async findByConstituency(constituencyId: string, scopeContext?: ScopeContext): Promise<Document[]> {
     const { data, error } = await this.supabase
       .from('documents')
       .select('*')
@@ -166,14 +175,26 @@ export class DocumentsService {
       throw new BadRequestException(`Failed to fetch constituency documents: ${error.message}`);
     }
 
-    return data as Document[];
+    return applyScopeToRows((data as Document[]) || [], scopeContext);
   }
 
   /**
    * Create a new document record
    * File upload should be handled separately via Supabase Storage
    */
-  async create(dto: CreateDocumentDto, userId: string): Promise<Document> {
+  async create(dto: CreateDocumentDto, userId: string, scopeContext?: ScopeContext): Promise<Document> {
+    if (scopeContext?.level === 'province' && dto.constituency_id) {
+      const { data: constituency } = await this.supabase
+        .from('constituencies')
+        .select('id, district:districts(province:provinces(name))')
+        .eq('id', dto.constituency_id)
+        .maybeSingle();
+      const scoped = applyScopeToRows((constituency ? [constituency] : []) as any[], scopeContext);
+      if (!scoped.length) {
+        throw new ForbiddenException('Cannot create document outside your scope');
+      }
+    }
+
     // Validate project exists if project_id is provided
     if (dto.project_id) {
       const { data: project, error: projectError } = await this.supabase
@@ -357,7 +378,7 @@ export class DocumentsService {
   /**
    * Get document statistics for a constituency
    */
-  async getStatistics(constituencyId: string): Promise<{
+  async getStatistics(constituencyId: string, scopeContext?: ScopeContext): Promise<{
     total: number;
     by_type: Record<string, number>;
     immutable_count: number;

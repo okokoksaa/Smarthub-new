@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { CreateWdcSignoffDto } from './dto/create-wdc-signoff.dto';
 import { UpdateWdcSignoffDto } from './dto/update-wdc-signoff.dto';
+import { ScopeContext } from '../common/scope/scope-context';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 @Injectable()
 export class WdcService {
@@ -24,10 +26,10 @@ export class WdcService {
     });
   }
 
-  async getSignoffByProject(projectId: string) {
+  async getSignoffByProject(projectId: string, scopeContext?: ScopeContext) {
     const { data, error } = await this.supabase
       .from('wdc_signoffs')
-      .select('*')
+      .select('*, project:projects(id, constituency:constituencies(id, district:districts(province:provinces(name))))')
       .eq('project_id', projectId)
       .maybeSingle();
 
@@ -39,10 +41,27 @@ export class WdcService {
       throw new NotFoundException('WDC sign-off not found for project');
     }
 
+    const scoped = applyScopeToRows([data], scopeContext);
+    if (!scoped.length) {
+      throw new NotFoundException('WDC sign-off not found for project');
+    }
+
     return data;
   }
 
-  async createSignoff(dto: CreateWdcSignoffDto, user: any) {
+  async createSignoff(dto: CreateWdcSignoffDto, user: any, scopeContext?: ScopeContext) {
+    if (scopeContext?.level === 'province') {
+      const { data: project } = await this.supabase
+        .from('projects')
+        .select('id, constituency:constituencies(id, district:districts(province:provinces(name)))')
+        .eq('id', dto.project_id)
+        .maybeSingle();
+      const scoped = applyScopeToRows((project ? [project] : []) as any[], scopeContext);
+      if (!scoped.length) {
+        throw new BadRequestException('Project not found in current scope');
+      }
+    }
+
     // Ensure one sign-off per project
     const { data: existing } = await this.supabase
       .from('wdc_signoffs')
@@ -73,7 +92,7 @@ export class WdcService {
     return data;
   }
 
-  async updateSignoff(id: string, dto: UpdateWdcSignoffDto) {
+  async updateSignoff(id: string, dto: UpdateWdcSignoffDto, scopeContext?: ScopeContext) {
     // Fetch existing to compute transitions
     const { data: existing, error: findErr } = await this.supabase
       .from('wdc_signoffs')
@@ -82,6 +101,11 @@ export class WdcService {
       .single();
 
     if (findErr || !existing) {
+      throw new NotFoundException('WDC sign-off not found');
+    }
+
+    const scoped = applyScopeToRows([existing], scopeContext);
+    if (!scoped.length) {
       throw new NotFoundException('WDC sign-off not found');
     }
 
