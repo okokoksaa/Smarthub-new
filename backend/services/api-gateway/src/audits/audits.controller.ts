@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -24,8 +24,15 @@ export class AuditsController {
     @Query('end_date') endDate?: string,
     @Query('constituency_id') constituencyId?: string,
     @Query('min_large_amount') minLargeAmount?: string,
+    @Req() req?: any,
   ) {
-    return this.svc.getRedFlags({ startDate, endDate, constituencyId, minLargeAmount: minLargeAmount ? Number(minLargeAmount) : undefined });
+    return this.svc.getRedFlags({
+      startDate,
+      endDate,
+      constituencyId,
+      minLargeAmount: minLargeAmount ? Number(minLargeAmount) : undefined,
+      scopeContext: req?.scopeContext,
+    });
   }
 }
 

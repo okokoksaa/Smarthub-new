@@ -1,12 +1,15 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { ScopeContext } from '../common/scope/scope-context';
+import { applyScopeToRows } from '../common/scope/scope.utils';
 
 type RedFlagsParams = {
   startDate?: string;
   endDate?: string;
   constituencyId?: string;
   minLargeAmount?: number;
+  scopeContext?: ScopeContext;
 };
 
 @Injectable()
@@ -36,9 +39,11 @@ export class AuditsService {
     const { data: payments, error: pErr } = await pQuery;
     if (pErr) throw new BadRequestException('Failed to load payments');
 
+    const scopedPayments = applyScopeToRows(payments || [], params.scopeContext);
+
     const flags = {
       summary: {
-        total_payments: payments?.length || 0,
+        total_payments: scopedPayments.length || 0,
       },
       same_user_both_panels: [] as any[],
       panel_sequence_violation: [] as any[],
@@ -50,7 +55,7 @@ export class AuditsService {
 
     const refMap: Record<string, string[]> = {};
 
-    for (const pay of payments || []) {
+    for (const pay of scopedPayments) {
       // Duplicate reference
       const ref = pay.transaction_reference?.trim();
       if (ref) {
