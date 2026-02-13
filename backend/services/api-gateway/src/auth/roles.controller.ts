@@ -67,10 +67,8 @@ export class RolesController {
       roles = allRoles;
     }
 
-    // Emergency bootstrap: never return empty roles for authenticated users
-    if (!roles || roles.length === 0) {
-      roles = allRoles;
-    }
+    // In production, do NOT auto-elevate users when roles are empty.
+    // Return empty and let RBAC deny access until roles are correctly assigned.
 
     return { roles };
   }

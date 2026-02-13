@@ -36,13 +36,10 @@ export function useUserRoles() {
     queryFn: async () => {
       try {
         const { data } = await api.get<UserRolesResponse>('/auth/roles');
-        const resolvedRoles = data.roles || [];
-        // Emergency fallback: prevent total lockout when backend role sync is unstable
-        return resolvedRoles.length > 0 ? resolvedRoles : ['super_admin'];
+        return data.roles || [];
       } catch (err) {
         console.error('Error fetching user roles via API:', err);
-        // Emergency fallback: keep owner/admin workflows unblocked during incident
-        return ['super_admin'];
+        return [];
       }
     },
     enabled: !!user,
