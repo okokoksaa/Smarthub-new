@@ -16,8 +16,9 @@ import { ProjectStatusChart } from '@/components/dashboard/ProjectStatusChart';
 import { BudgetUtilizationChart } from '@/components/dashboard/BudgetUtilizationChart';
 import { AIAdvisoryPanel } from '@/components/dashboard/AIAdvisoryPanel';
 import { RecentActivityFeed } from '@/components/dashboard/RecentActivityFeed';
-import { mockDashboardMetrics } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+import { useProjects } from '@/hooks/useProjects';
+import { usePayments } from '@/hooks/usePayments';
 
 function formatCurrency(amount: number): string {
   if (amount >= 1000000000) {
@@ -90,10 +91,30 @@ function MetricCardEnhanced({
 }
 
 export default function Dashboard() {
-  const metrics = mockDashboardMetrics;
-  const utilizationPercentage = Math.round(
-    (metrics.disbursedAmount / metrics.totalBudget) * 100
-  );
+  const { data: projects = [] } = useProjects();
+  const { data: payments = [] } = usePayments();
+
+  const totalBudget = projects.reduce((sum: number, p: any) => sum + Number(p.approved_amount || p.estimated_cost || 0), 0);
+  const disbursedAmount = payments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+  const projectsCompleted = projects.filter((p: any) => p.status === 'completed').length;
+  const projectsInProgress = projects.filter((p: any) => p.status === 'implementation').length;
+  const projectsPending = projects.filter((p: any) => ['submitted', 'cdfc_review', 'tac_appraisal', 'plgo_review'].includes(p.status)).length;
+  const pendingPayments = payments.filter((p: any) => p.status !== 'executed' && p.status !== 'rejected').length;
+  const aiAlertsToday = payments.filter((p: any) => (p.ai_risk_score || 0) >= 50).length;
+
+  const metrics = {
+    totalBudget,
+    disbursedAmount,
+    projectsTotal: projects.length,
+    projectsCompleted,
+    projectsInProgress,
+    projectsPending,
+    constituenciesActive: new Set(projects.map((p: any) => p.constituency_id).filter(Boolean)).size,
+    pendingPayments,
+    aiAlertsToday,
+  };
+
+  const utilizationPercentage = metrics.totalBudget > 0 ? Math.round((metrics.disbursedAmount / metrics.totalBudget) * 100) : 0;
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

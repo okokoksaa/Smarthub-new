@@ -126,8 +126,8 @@ export const usePayments = (status?: string) => {
           query = query.eq('status', status as Payment['status']);
         }
 
-        const { data, error } = await query;
-        if (error) throw error;
+        const { data, error: dbError } = await query;
+        if (dbError) throw dbError;
         return data as Payment[];
       }
     },

@@ -4,8 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { mockConstituencies, mockProjects } from '@/data/mockData';
 import { cn } from '@/lib/utils';
+import { useProjects } from '@/hooks/useProjects';
+import { useConstituencies } from '@/hooks/useGeographyData';
 
 function formatCurrency(amount: number): string {
   if (amount >= 1000000) {
@@ -16,17 +17,23 @@ function formatCurrency(amount: number): string {
 
 export default function Constituencies() {
   const [searchQuery, setSearchQuery] = useState('');
+  const { data: constituencies = [] } = useConstituencies();
+  const { data: projects = [] } = useProjects();
 
-  const constituenciesWithStats = mockConstituencies.map((constituency) => {
-    const projects = mockProjects.filter((p) => p.constituencyId === constituency.id);
-    const completedProjects = projects.filter((p) => p.status === 'completed').length;
-    const utilizationRate = Math.round(
-      (constituency.utilizedBudget / constituency.allocatedBudget) * 100
-    );
+  const constituenciesWithStats = constituencies.map((constituency: any, idx: number) => {
+    const constituencyProjects = projects.filter((p: any) => p.constituency_id === constituency.id);
+    const completedProjects = constituencyProjects.filter((p: any) => p.status === 'completed').length;
+    const allocatedBudget = Number(constituency.allocated_budget || constituency.total_budget || 0);
+    const utilizedBudget = Number(constituency.disbursed_budget || 0);
+    const utilizationRate = allocatedBudget > 0 ? Math.round((utilizedBudget / allocatedBudget) * 100) : 0;
 
     return {
-      ...constituency,
-      projectCount: projects.length,
+      id: constituency.id,
+      name: constituency.name,
+      mpName: `Constituency ${idx + 1}`,
+      allocatedBudget,
+      utilizedBudget,
+      projectCount: constituencyProjects.length,
       completedProjects,
       utilizationRate,
     };
