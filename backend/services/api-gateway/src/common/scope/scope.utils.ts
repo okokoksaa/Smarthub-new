@@ -22,8 +22,9 @@ export function resolveScopeContext(scopeParam?: string, constituencyHeader?: st
     };
   }
 
-  if (/province$/i.test(raw)) {
-    const provinceName = normalizeProvinceName(raw);
+  // Province can be provided as "Lusaka Province" or just "Lusaka"
+  const provinceName = normalizeProvinceName(raw);
+  if (provinceName) {
     return {
       rawScope: raw,
       normalizedScope: `${provinceName} Province`,
@@ -33,7 +34,7 @@ export function resolveScopeContext(scopeParam?: string, constituencyHeader?: st
     };
   }
 
-  // Unknown format -> fail-safe to national to avoid accidental over-restriction.
+  // Final fallback
   return {
     rawScope: raw,
     normalizedScope: 'National (All)',
