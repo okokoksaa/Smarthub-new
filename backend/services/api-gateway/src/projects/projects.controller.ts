@@ -55,17 +55,20 @@ export class ProjectsController {
     @Query('constituency_id') constituencyId?: string,
     @Query('ward_id') wardId?: string,
     @Query('sector') sector?: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Req() req?: any,
   ) {
+    const pageNum = Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
+    const limitNum = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : 20;
+
     return this.projectsService.findAll({
       status,
       constituencyId,
       wardId,
       sector,
-      page: Number(page),
-      limit: Number(limit),
+      page: pageNum,
+      limit: limitNum,
       scopeContext: req?.scopeContext,
     });
   }

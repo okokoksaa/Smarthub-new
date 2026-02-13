@@ -41,17 +41,20 @@ export class ProcurementController {
     @Query('status') status?: string,
     @Query('constituency_id') constituencyId?: string,
     @Query('procurement_method') procurementMethod?: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @CurrentUser() user?: any,
     @Request() req?: any,
   ) {
+    const pageNum = Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
+    const limitNum = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : 20;
+
     return this.procurementService.findAll({
       status,
       constituencyId,
       procurementMethod,
-      page,
-      limit,
+      page: pageNum,
+      limit: limitNum,
       user,
       scopeContext: req?.scopeContext,
     });

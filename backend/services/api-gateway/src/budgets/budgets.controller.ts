@@ -41,15 +41,18 @@ export class BudgetsController {
   async findAllBudgets(
     @Query('fiscal_year') fiscalYear?: number,
     @Query('constituency_id') constituencyId?: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Request() req?: any,
   ) {
+    const pageNum = Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
+    const limitNum = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : 20;
+
     return this.budgetsService.findAllBudgets({
       fiscalYear: fiscalYear ? Number(fiscalYear) : undefined,
       constituencyId,
-      page: Number(page),
-      limit: Number(limit),
+      page: pageNum,
+      limit: limitNum,
       scopeContext: req?.scopeContext,
     });
   }
@@ -117,17 +120,20 @@ export class BudgetsController {
     @Query('quarter') quarter?: number,
     @Query('constituency_id') constituencyId?: string,
     @Query('status') status?: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 20,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
     @Request() req?: any,
   ) {
+    const pageNum = Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
+    const limitNum = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Number(limit) : 20;
+
     return this.budgetsService.findAllReturns({
       fiscalYear: fiscalYear ? Number(fiscalYear) : undefined,
       quarter: quarter ? Number(quarter) : undefined,
       constituencyId,
       status,
-      page: Number(page),
-      limit: Number(limit),
+      page: pageNum,
+      limit: limitNum,
       scopeContext: req?.scopeContext,
     });
   }
