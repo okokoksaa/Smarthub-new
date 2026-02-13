@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useAuth } from './useAuth';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 export type AppRole =
   | 'super_admin'
@@ -23,6 +23,7 @@ interface UserRolesResponse {
 }
 
 const ACTIVE_ROLE_STORAGE_KEY = 'cdf.activeRole';
+const ACTIVE_ROLE_EVENT = 'cdf:active-role-changed';
 
 export function useUserRoles() {
   const { user } = useAuth();
@@ -30,6 +31,25 @@ export function useUserRoles() {
     const saved = localStorage.getItem(ACTIVE_ROLE_STORAGE_KEY);
     return (saved as AppRole) || null;
   });
+
+  useEffect(() => {
+    const syncFromStorage = () => {
+      const saved = localStorage.getItem(ACTIVE_ROLE_STORAGE_KEY);
+      setActiveRoleState((saved as AppRole) || null);
+    };
+
+    const onCustom = () => syncFromStorage();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === ACTIVE_ROLE_STORAGE_KEY) syncFromStorage();
+    };
+
+    window.addEventListener(ACTIVE_ROLE_EVENT, onCustom as EventListener);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(ACTIVE_ROLE_EVENT, onCustom as EventListener);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
 
   const { data: roles = [], isLoading: loading } = useQuery({
     queryKey: ['auth', 'roles'],
@@ -54,6 +74,7 @@ export function useUserRoles() {
     if (!role) {
       localStorage.removeItem(ACTIVE_ROLE_STORAGE_KEY);
       setActiveRoleState(null);
+      window.dispatchEvent(new CustomEvent(ACTIVE_ROLE_EVENT));
       return;
     }
 
@@ -63,6 +84,7 @@ export function useUserRoles() {
 
     localStorage.setItem(ACTIVE_ROLE_STORAGE_KEY, role);
     setActiveRoleState(role);
+    window.dispatchEvent(new CustomEvent(ACTIVE_ROLE_EVENT));
   };
 
   // Memoized helper functions to avoid recreating on every render
