@@ -58,7 +58,8 @@ export class RolesController {
 
     const allRoles = [
       'super_admin', 'ministry_official', 'auditor', 'plgo', 'tac_chair', 'tac_member',
-      'cdfc_chair', 'cdfc_member', 'finance_officer', 'wdc_member', 'mp'
+      'cdfc_chair', 'cdfc_member', 'finance_officer', 'wdc_member', 'mp',
+      'contractor', 'citizen', 'community_member'
     ];
 
     // Dev fallback: if roles are empty and DEV_ASSUME_SUPER_ADMIN=true, grant all roles for testing
@@ -98,7 +99,8 @@ export class RolesController {
 
     const allRoles = [
       'super_admin', 'ministry_official', 'auditor', 'plgo', 'tac_chair', 'tac_member',
-      'cdfc_chair', 'cdfc_member', 'finance_officer', 'wdc_member', 'mp'
+      'cdfc_chair', 'cdfc_member', 'finance_officer', 'wdc_member', 'mp',
+      'contractor', 'citizen', 'community_member'
     ];
 
     const supabase = createClient(

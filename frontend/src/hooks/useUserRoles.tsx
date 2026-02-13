@@ -16,7 +16,8 @@ export type AppRole =
   | 'wdc_member'
   | 'mp'
   | 'contractor'
-  | 'citizen';
+  | 'citizen'
+  | 'community_member';
 
 interface UserRolesResponse {
   roles: AppRole[];
@@ -24,6 +25,23 @@ interface UserRolesResponse {
 
 const ACTIVE_ROLE_STORAGE_KEY = 'cdf.activeRole';
 const ACTIVE_ROLE_EVENT = 'cdf:active-role-changed';
+
+export const ALL_APP_ROLES: AppRole[] = [
+  'super_admin',
+  'ministry_official',
+  'auditor',
+  'plgo',
+  'tac_chair',
+  'tac_member',
+  'cdfc_chair',
+  'cdfc_member',
+  'finance_officer',
+  'wdc_member',
+  'mp',
+  'contractor',
+  'citizen',
+  'community_member',
+];
 
 export function useUserRoles() {
   const { user } = useAuth();
@@ -78,7 +96,8 @@ export function useUserRoles() {
       return;
     }
 
-    if (!roles.includes(role)) {
+    const canAssumeAnyRole = roles.includes('super_admin');
+    if (!canAssumeAnyRole && !roles.includes(role)) {
       return;
     }
 

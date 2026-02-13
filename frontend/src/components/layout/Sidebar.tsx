@@ -207,8 +207,11 @@ export function Sidebar() {
       return [{ title: 'Core', items: [{ title: 'Dashboard', href: '/', icon: LayoutDashboard }] }];
     }
 
-    // If user has no roles or is a citizen, show public-only navigation
-    if (roles.length === 0 || (roles.length === 1 && roles[0] === 'citizen')) {
+    // If user has no roles or is public community role, show public-only navigation
+    if (
+      roles.length === 0 ||
+      (roles.length === 1 && (roles[0] === 'citizen' || roles[0] === 'community_member'))
+    ) {
       return publicNavSections;
     }
 

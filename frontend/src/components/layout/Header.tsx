@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserRoles, AppRole } from '@/hooks/useUserRoles';
+import { useUserRoles, AppRole, ALL_APP_ROLES } from '@/hooks/useUserRoles';
 import { useToast } from '@/hooks/use-toast';
 import { useNotifications, formatNotificationTime, getNotificationTypeColor } from '@/hooks/useNotifications';
 
@@ -33,6 +33,7 @@ const roleDisplayNames: Record<AppRole, string> = {
   mp: 'Member of Parliament',
   contractor: 'Contractor',
   citizen: 'Citizen',
+  community_member: 'Community Member',
 };
 
 const SCOPE_STORAGE_KEY = 'cdf.selectedScope';
@@ -291,7 +292,7 @@ export function Header() {
                         >
                           Super Admin (Full)
                         </Button>
-                        {roles
+                        {ALL_APP_ROLES
                           .filter((role) => role !== 'super_admin')
                           .map((role) => (
                             <Button
@@ -301,7 +302,7 @@ export function Header() {
                               className="w-full justify-start h-7 text-xs"
                               onClick={() => setActiveRole(role)}
                             >
-                              {roleDisplayNames[role]}
+                              {roleDisplayNames[role] || role}
                             </Button>
                           ))}
                       </div>

@@ -10,7 +10,8 @@ export type UserRole =
   | 'wdc_member'
   | 'mp'
   | 'contractor'
-  | 'citizen';
+  | 'citizen'
+  | 'community_member';
 
 export type ProjectStatus = 
   | 'submitted'

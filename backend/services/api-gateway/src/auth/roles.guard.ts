@@ -32,7 +32,16 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const hasRole = requiredRoles.some((role) => userRoles.includes(role));
+    const roleAliases: Record<string, string[]> = {
+      citizen: ['community_member'],
+      community_member: ['citizen'],
+    };
+
+    const hasRole = requiredRoles.some((role) => {
+      if (userRoles.includes(role)) return true;
+      const aliases = roleAliases[role] || [];
+      return aliases.some((alias) => userRoles.includes(alias));
+    });
 
     if (!hasRole) {
       throw new ForbiddenException(
